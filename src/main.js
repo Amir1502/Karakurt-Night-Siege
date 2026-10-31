@@ -6,6 +6,15 @@ import { createWorld } from './game/world.js';
 import { createAudio } from './game/audio.js';
 import { loadProductionAssets, disposeProductionAssets } from './game/render/productionAssets.js';
 import { interpolateState } from './game/render/interpolate.js';
+import { createMouseFilter, clampSensitivity } from './game/input.js';
+
+// Player preferences live under their own key: the progress save has a strict field set.
+export const SETTINGS_KEY='svh3d.settings.v1';
+export function loadSettings(storage){
+  let raw={};try{raw=JSON.parse(storage?.getItem(SETTINGS_KEY)??'{}')||{};}catch{}
+  const unit=(v,d)=>{const n=Number(v);return v!==null&&v!==undefined&&Number.isFinite(n)?Math.min(1,Math.max(0,n)):d;};
+  return {sensitivity:clampSensitivity(raw.sensitivity??1),music:unit(raw.music,.5),sfx:unit(raw.sfx,.8)};
+}
 
 export function createEventBus(){
   const listeners=new Map(),queue=[];
@@ -15,7 +24,8 @@ export function createEventBus(){
 export async function boot(root){
   const $=s=>root.querySelector(s),canvas=$('#game3d'),world=createWorld(canvas),bus=createEventBus();
   let storage;try{storage=localStorage;}catch{}
-  const save=loadSave(storage),audio=createAudio(null,bus,save.muted);
+  const save=loadSave(storage),settings=loadSettings(storage),mouse=createMouseFilter();
+  const audio=createAudio(null,bus,save.muted,{music:settings.music,sfx:settings.sfx});
   let state='loading',sim,config,assets=new Map(),keys={},mx=0,my=0,acc=0,last=0,raf,queuedPurchase=false,disposed=false;
   let current,previous,hitUntil=0,lastHit=0,soundShot=0,soundReload=0,damageUntil=0,shelterUntil=0,damage=0;
   const abort=new AbortController(),listen=(t,n,f)=>t.addEventListener(n,f,{signal:abort.signal});
@@ -57,7 +67,18 @@ export async function boot(root){
   listen(start,'click',()=>state==='loaderror'?prepareAssets():state==='paused'?resumeFromGesture():startNewRun());
   listen(buy,'click',()=>{queuedPurchase=true;resumeFromGesture();});
   listen($('.btn-mute'),'click',()=>{save.muted=!save.muted;muted();});muted();
-  listen(document,'pointerlockchange',()=>{if(document.pointerLockElement!==canvas)pause();});
+  // Chrome may report a bogus movement burst right after the lock changes: settle the filter.
+  listen(document,'pointerlockchange',()=>{mouse.reset(performance.now());if(document.pointerLockElement!==canvas)pause();});
+  const sliders={sensitivity:[$('#sens'),v=>`${v.toFixed(2)}×`],music:[$('#music'),v=>`${Math.round(v*100)}%`],sfx:[$('#sfx'),v=>`${Math.round(v*100)}%`]};
+  for(const [key,[input,format]] of Object.entries(sliders)){
+    if(!input)continue;input.value=String(settings[key]);text(`#${input.id}-value`,format(settings[key]));
+    listen(input,'input',()=>{
+      settings[key]=key==='sensitivity'?clampSensitivity(input.value):Math.min(1,Math.max(0,Number(input.value)||0));
+      text(`#${input.id}-value`,format(settings[key]));
+      if(key==='music')audio.setMusicVolume(settings.music);if(key==='sfx')audio.setSfxVolume(settings.sfx);
+      try{storage?.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch{}
+    });
+  }
   listen(document,'pointerlockerror',()=>{text('#notice','Браузер не разрешил захват мыши. Нажмите кнопку ещё раз.');queuedPurchase=false;});
   listen(window,'blur',pause);listen(document,'visibilitychange',()=>{if(document.hidden)pause();});
   listen(window,'keydown',e=>{
@@ -69,7 +90,9 @@ export async function boot(root){
   });
   listen(window,'keyup',e=>{keys[e.code]=false;});
   listen(canvas,'mousedown',e=>{if(state==='running'&&e.button===0)keys.fire=true;});listen(window,'mouseup',()=>{keys.fire=false;});
-  listen(document,'mousemove',e=>{if(state==='running'&&document.pointerLockElement===canvas){mx+=e.movementX;my+=e.movementY;}});
+  // Spike-filtered, sensitivity-scaled mouse look (see src/game/input.js).
+  listen(document,'mousemove',e=>{if(state!=='running'||document.pointerLockElement!==canvas)return;
+    const d=mouse.accept(e.movementX,e.movementY,performance.now(),settings.sensitivity);if(d){mx+=d[0];my+=d[1];}});
   listen(window,'resize',()=>world.resize(innerWidth,innerHeight,devicePixelRatio));
   bus.on('player:damage',e=>{damage=current.time<damageUntil?damage+e.amount:e.amount;damageUntil=current.time+1;});
   bus.on('shelter:damage',()=>{shelterUntil=current.time+1.5;});
@@ -78,15 +101,18 @@ export async function boot(root){
   const result=await loadConfig();config=result.config;sim=createSim(config);current=sim.getState();previous=current;
   const labels=['ПМ','Дробовик','Скорпион','Факел','Турель'];
   const slots=labels.map((label,i)=>{const el=document.createElement('li');el.className='hud-weapon-slot';el.textContent=`${i+1} · ${label}`;$('.hud-weapon-list').append(el);return el;});
-  text('#record',save.bestWave?`Рекорд: ${save.bestWave} волн · ${save.kills} пауков`:'Рука цела. Шалаш под вопросом.');
+  // Русское склонение: 1 волна, 2 волны, 5 волн; 11–14 всегда «много».
+  const plural=(n,one,few,many)=>{const m10=n%10,m100=n%100;return `${n} ${m10===1&&m100!==11?one:m10>=2&&m10<=4&&(m100<12||m100>14)?few:many}`;};
+  text('#record',save.bestWave?`Рекорд: ${plural(save.bestWave,'волна','волны','волн')} · ${plural(save.kills,'паук','паука','пауков')}`:'Рука цела. Шалаш под вопросом.');
   function draw(s){
-    if(s.shotSerial!==soundShot){soundShot=s.shotSerial;audio.play('shot');}
+    if(s.shotSerial!==soundShot){soundShot=s.shotSerial;audio.play('shot',s.activeSlot);}
+    audio.setIntensity(state==='running'&&s.phase!=='build');
     if(s.reloadSerial!==soundReload){soundReload=s.reloadSerial;audio.play('reload');}
     if(s.hitSerial!==lastHit){lastHit=s.hitSerial;audio.play('hit');hitUntil=s.time+(noFlash.checked?.5:.12);}
     text('#health',Math.ceil(s.player.health));$('#healthbar').value=s.player.health;text('#stamina',`Выносливость ${Math.floor(s.player.stamina)}`);
     text('#damage',s.time<damageUntil?`Урон: −${Math.ceil(damage)} HP`:'');
     text('#shelter',s.shelterIntegrity>0&&s.shelterIntegrity<1?'<1':Math.floor(s.shelterIntegrity));$('#shelterbar').value=s.shelterIntegrity;
-    text('#shelter-status',s.time<shelterUntil?'! Шалаш под атакой':s.shelterIntegrity<30?'Критическое состояние':s.shelterIntegrity<70?'Повреждён':'');
+    text('#shelter-status',s.time<shelterUntil?'Шалаш под атакой':s.shelterIntegrity<30?'Критическое состояние':s.shelterIntegrity<70?'Повреждён':'');
     text('#scrap',`Детали: ${s.scrap}`);
     text('#offer',s.interaction.ok?`E · ${s.interaction.kind==='build'?'Турель':'Ремонт'} за ${s.interaction.cost}`:s.interaction.reason);
     text('#wave',`Волна ${s.wave} / 10`);text('#phase',s.phase==='build'?`${s.subphase==='build'?'Подготовка':'До атаки'}: ${Math.ceil(s.remaining)} с`:`Пауков: ${s.spiders.length}`);

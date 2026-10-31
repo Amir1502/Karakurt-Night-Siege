@@ -281,7 +281,7 @@ canvas#game3d {
   margin: 0 0 16px;
   color: var(--text);
   font-size: clamp(2.25rem, 3.5vw, 3rem);
-  font-weight: 750;
+  font-weight: 600;
   line-height: 1.2;
   text-wrap: balance;
   overflow-wrap: anywhere;
@@ -296,7 +296,7 @@ canvas#game3d {
 }
 
 #hud3d .overlay-text > * + * { margin-top: 12px; }
-#hud3d #record { color: var(--accent); margin-top: var(--space); }
+#hud3d #record { color: var(--muted); margin-top: var(--space); }
 #hud3d #controls { color: var(--muted); }
 #hud3d #controls summary { min-height: 44px; cursor: pointer; padding-block: 10px; }
 #hud3d #controls summary:hover { color: var(--text); }
@@ -308,7 +308,39 @@ canvas#game3d {
 #hud3d #buy:hover { border-color: var(--accent); color: var(--accent); }
 #hud3d #buy:active { background: var(--accent); color: var(--panel); }
 #hud3d #buy:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Меню: лагерь у костра виден за карточкой, тёплый янтарный акцент. */
+#hud3d .overlay {
+  background:
+    linear-gradient(90deg, rgb(8 12 18 / 78%) 0, rgb(8 12 18 / 35%) 60%, rgb(8 12 18 / 10%));
+}
+#hud3d .overlay-title { color: var(--accent); }
+#hud3d #settings {
+  display: grid; grid-template-columns: 1fr; gap: 4px; margin-inline: 0;
+  padding: 12px; border: 1px solid #35445C; border-radius: 8px;
+}
+#hud3d #settings legend { padding-inline: 6px; color: var(--muted); font-size: .875rem; }
+#hud3d #settings label {
+  display: flex; justify-content: space-between; min-height: 0; padding: 0;
+  border: 0; background: none; cursor: default;
+}
+#hud3d #settings output { color: var(--text); font-variant-numeric: tabular-nums; }
+#hud3d #settings input[type="range"] {
+  width: 100%; min-height: 28px; margin: 0 0 8px; accent-color: var(--accent); cursor: pointer;
+}
+#hud3d #settings input[type="range"]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 #hud3d #buy:disabled { opacity: .5; cursor: default; }
+
+/* Компактный боевой HUD: меньше подложки, крупными остаются только числа. */
+#hud3d :is(.hud-health, .hud-ammo, .hud-wave, .hud-shelter) {
+  padding: 8px 12px; border-color: #2c3a4e; background: rgb(16 24 32 / 88%);
+  font-size: .875rem; line-height: 1.35;
+}
+#hud3d :is(.hud-health, .hud-ammo, .hud-wave, .hud-shelter) :is(strong, output) { font-size: 1.25rem; line-height: 1.25; }
+#hud3d .hud small { font-size: .875rem; line-height: 1.35; }
+#hud3d .hud-ammo output { color: var(--accent); font-size: 1.625rem; }
+#hud3d .hud-health { max-width: 180px; }
+#hud3d .hud-shelter { max-width: 220px; }
 #hud3d .overlay-text :is(ul, ol) { padding-left: 24px; }
 #hud3d .overlay-text li + li { margin-top: 4px; }
 
@@ -331,7 +363,7 @@ canvas#game3d {
   border: 2px solid transparent;
   border-radius: 6px;
   font: inherit;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.4;
   text-align: center;
   overflow-wrap: anywhere;

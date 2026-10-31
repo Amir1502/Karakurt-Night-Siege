@@ -17,6 +17,10 @@ export function createWorld(canvas, assets = new Map()) {
   const flash=new THREE.Sprite(muzzleMaterial);flash.scale.setScalar(.22);flash.visible=false;scene.add(flash);
   const flame=new THREE.Sprite(muzzleMaterial);flame.visible=false;scene.add(flame);
   const target=new THREE.Vector3(),muzzle=new THREE.Vector3();
+  // Procedural recoil layered on top of the GLB fire clip: sharp kick, fast spring return.
+  // Most of the feel is in the weapon; the camera only gets a small pitch nudge.
+  const KICK=[1,1.9,.55,.12,.3],VIEW_BASE=new THREE.Vector3(.24,-.25,-.48);let kick=0,kickRoll=0;
+  const muzzleLight=new THREE.PointLight('#ffb35c',0,7,2);scene.add(muzzleLight);
 
   function install(catalog) {
     reset();installed.splice(0).forEach(v=>v.dispose());equipment.length=0;assets=catalog;scenery.install(assets);
@@ -39,7 +43,7 @@ export function createWorld(canvas, assets = new Map()) {
   function reset(){
     entities.forEach(retire);entities.clear();dead.splice(0).forEach(d=>retire(d.v));
     projectiles.forEach(m=>m.removeFromParent());projectiles.clear();equipment.forEach(v=>v?.reset());
-    turret?.reset();previousShot=previousReload=previousTurretShot=slot=0;lastTime=null;flashUntil=0;flash.visible=flame.visible=false;hadTurret=turretReloading=false;
+    turret?.reset();previousShot=previousReload=previousTurretShot=slot=0;lastTime=null;flashUntil=0;flash.visible=flame.visible=false;kick=0;muzzleLight.intensity=0;hadTurret=turretReloading=false;
   }
   function render(alpha,s) {
     const dt=lastTime===null?0:Math.max(0,Math.min(.1,s.time-lastTime));lastTime=s.time;
@@ -63,11 +67,18 @@ export function createWorld(canvas, assets = new Map()) {
     if(slot!==s.activeSlot){equipment.forEach((v,i)=>{if(v){v.root.visible=i===s.activeSlot-1;v.reset();}});slot=s.activeSlot;view?.play(kit?'kit_equip':'equip',true,.3);}
     if(view){
       if(kit&&s.turrets.length&&!hadTurret)view.play('kit_deploy',true);
-      if(s.shotSerial!==previousShot){view.play('fire',true);previousShot=s.shotSerial;flashUntil=s.time+.045;}
+      if(s.shotSerial!==previousShot){view.play('fire',true);previousShot=s.shotSerial;flashUntil=s.time+.045;
+        kick=Math.min(1.6,kick+KICK[s.activeSlot-1]);kickRoll=(Math.random()-.5)*.5;
+        muzzleMaterial.rotation=Math.random()*Math.PI*2;flash.scale.setScalar(.18+Math.random()*.12*(s.activeSlot===2?1.8:1));}
+      kick*=Math.exp(-dt*16);if(kick<1e-3)kick=0;
+      view.root.position.set(VIEW_BASE.x+kick*.012*kickRoll,VIEW_BASE.y+kick*.018,VIEW_BASE.z+kick*.075);
+      view.root.rotation.set(kick*.16,kick*.02*kickRoll,kick*.06*kickRoll);
+      camera.rotation.x+=kick*.008;
       if(s.reloadSerial!==previousReload){view.play('reload',true,s.weapons[s.activeSlot-1].reload);previousReload=s.reloadSerial;}
       if(view.finished)view.play(kit?'kit_idle':'idle');view.mixer.update(dt);
       const socket=view.root.getObjectByName('socket_muzzle');camera.updateMatrixWorld(true);socket?.getWorldPosition(muzzle);
       flash.position.copy(muzzle);flash.visible=!noFlash&&s.time<flashUntil&&s.activeSlot!==4;
+      muzzleLight.position.copy(muzzle);muzzleLight.intensity=flash.visible?(s.activeSlot===2?14:8):0;
       flame.visible=s.activeSlot===4&&s.time-(s.lastShot?.time??-1)<.12;
       if(flame.visible){camera.getWorldDirection(target);flame.position.copy(muzzle).addScaledVector(target,1.2);flame.scale.set(1,1.6,1);}
     }
