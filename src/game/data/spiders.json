@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "spiders": [
+    {
+      "id": "karakurt_runner",
+      "name": "Каракурт-бегун",
+      "health": 40,
+      "speed": 4.5,
+      "damage": 6,
+      "attackRange": 1.2,
+      "attackCooldown": 1,
+      "scrapDrop": 3,
+      "scale": 0.75,
+      "behavior": "chase"
+    },
+    {
+      "id": "karakurt_spitter",
+      "name": "Каракурт-плеватель",
+      "health": 60,
+      "speed": 2.6,
+      "damage": 8,
+      "attackRange": 14,
+      "attackCooldown": 2.5,
+      "scrapDrop": 5,
+      "scale": 0.9,
+      "behavior": "spit"
+    },
+    {
+      "id": "tarantula_brute",
+      "name": "Тарантул-таран",
+      "health": 220,
+      "speed": 1.8,
+      "damage": 18,
+      "attackRange": 1.8,
+      "attackCooldown": 1.8,
+      "scrapDrop": 10,
+      "scale": 1.5,
+      "behavior": "charge"
+    },
+    {
+      "id": "jumper_wolf",
+      "name": "Паук-волк",
+      "health": 75,
+      "speed": 3.4,
+      "damage": 12,
+      "attackRange": 8,
+      "attackCooldown": 3,
+      "scrapDrop": 6,
+      "scale": 1.05,
+      "behavior": "leap"
+    },
+    {
+      "id": "widow_queen",
+      "name": "Королева вдов",
+      "health": 1800,
+      "speed": 1.6,
+      "damage": 24,
+      "attackRange": 2.5,
+      "attackCooldown": 2,
+      "scrapDrop": 120,
+      "scale": 2.8,
+      "behavior": "boss"
+    }
+  ]
+}

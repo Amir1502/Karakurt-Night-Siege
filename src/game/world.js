@@ -1,0 +1,93 @@
+import * as THREE from 'three';
+import { instantiateAsset } from './render/productionAssets.js';
+import { createScenery } from './render/scenery.js';
+
+const WEAPONS=['pistol_makarov','shotgun_trench','smg_scorpion','flamethrower_torch','turret_sentry'];
+export function createWorld(canvas, assets = new Map()) {
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
+  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.035,200);
+  camera.rotation.order='YXZ';scene.add(camera);
+  const scenery=createScenery(scene),entities=new Map(),dead=[],pool=new Map(),projectiles=new Map();
+  const equipment=[],installed=[];let shelter,turret,lastTime=null,previousShot=0,previousReload=0,previousTurretShot=0,slot=0,noFlash=false,flashUntil=0,hadTurret=false,turretReloading=false;
+  const shadowGeometry=new THREE.CircleGeometry(.65,16),shadowMaterial=new THREE.MeshBasicMaterial({color:'#171d28',transparent:true,opacity:.3,depthWrite:false});
+  const webGeometry=new THREE.IcosahedronGeometry(.16,1),webMaterial=new THREE.MeshBasicMaterial({color:'#a9e2ce'});
+  const muzzleMaterial=new THREE.SpriteMaterial({color:'#ffc47a',transparent:true,opacity:.85,depthWrite:false,blending:THREE.AdditiveBlending});
+  const flash=new THREE.Sprite(muzzleMaterial);flash.scale.setScalar(.22);flash.visible=false;scene.add(flash);
+  const flame=new THREE.Sprite(muzzleMaterial);flame.visible=false;scene.add(flame);
+  const target=new THREE.Vector3(),muzzle=new THREE.Vector3();
+
+  function install(catalog) {
+    reset();installed.splice(0).forEach(v=>v.dispose());equipment.length=0;assets=catalog;scenery.install(assets);
+    shelter=instantiateAsset(assets,'shelter');if(shelter){scene.add(shelter.root);installed.push(shelter);}
+    for(const id of WEAPONS){const v=instantiateAsset(assets,id);equipment.push(v);if(!v)continue;
+      v.root.position.set(.24,-.25,-.48);camera.add(v.root);v.root.visible=false;installed.push(v);
+      const world=v.root.getObjectByName('world_root');if(world)world.visible=false;
+    }
+    turret=instantiateAsset(assets,'turret_sentry');if(turret){
+      turret.root.getObjectByName('view_root').visible=false;turret.root.position.set(-4.7,0,3.6);scene.add(turret.root);installed.push(turret);turret.root.visible=false;turret.lod(0);
+    }
+    muzzleMaterial.map=assets.textures.get('fx');muzzleMaterial.needsUpdate=true;
+  }
+  function enemy(e,scale) {
+    const stock=pool.get(e.spiderId),v=stock?.pop()??instantiateAsset(assets,e.spiderId);if(!v)return null;
+    if(!v.shadow){v.shadow=new THREE.Mesh(shadowGeometry,shadowMaterial);v.shadow.rotation.x=-Math.PI/2;v.shadow.scale.setScalar(scale);}
+    v.type=e.spiderId;v.enraged=false;v.phaseUntil=0;v.reset();v.root.scale.setScalar(scale);v.root.visible=true;scene.add(v.root,v.shadow);return v;
+  }
+  function retire(v){v.reset();v.root.removeFromParent();v.shadow.removeFromParent();if(!pool.has(v.type))pool.set(v.type,[]);pool.get(v.type).push(v);}
+  function reset(){
+    entities.forEach(retire);entities.clear();dead.splice(0).forEach(d=>retire(d.v));
+    projectiles.forEach(m=>m.removeFromParent());projectiles.clear();equipment.forEach(v=>v?.reset());
+    turret?.reset();previousShot=previousReload=previousTurretShot=slot=0;lastTime=null;flashUntil=0;flash.visible=flame.visible=false;hadTurret=turretReloading=false;
+  }
+  function render(alpha,s) {
+    const dt=lastTime===null?0:Math.max(0,Math.min(.1,s.time-lastTime));lastTime=s.time;
+    camera.position.set(s.player.x,s.player.y+1.65,s.player.z);camera.rotation.set(s.player.pitch,s.player.yaw,0,'YXZ');
+    const live=new Set();
+    for(const e of s.spiders){
+      live.add(e.id);let v=entities.get(e.id);
+      if(!v){v=enemy(e,s.definitions?.find(d=>d.id===e.spiderId)?.scale??1);if(!v)continue;entities.set(e.id,v);}
+      v.root.position.set(e.x,e.y,e.z);v.root.rotation.y=e.yaw;
+      v.shadow.position.set(e.x,.012,e.z);v.shadow.visible=e.y<.5;
+      if(e.enraged&&!v.enraged)v.phaseUntil=s.time+.8;
+      const action=s.time<v.phaseUntil&&['idle','walk'].includes(e.state)?'phase_change':e.state;v.enraged=e.enraged;
+      v.play(action);v.lod(camera.position.distanceTo(v.root.position));v.mixer.update(dt);
+    }
+    for(const [id,v] of entities)if(!live.has(id)){entities.delete(id);v.play('death');dead.push({v,left:1.1});}
+    for(let i=dead.length-1;i>=0;i--){const d=dead[i];d.left-=dt;d.v.mixer.update(dt);if(d.left<=0){retire(d.v);dead.splice(i,1);}}
+    if(shelter)for(const name of ['state_intact','state_damaged','state_critical','critical_standing','critical_ruins']){
+      const n=shelter.root.getObjectByName(name);if(n)n.visible=name==='state_intact'?s.shelterIntegrity>=70:name==='state_damaged'?s.shelterIntegrity>=30&&s.shelterIntegrity<70:name==='state_critical'?s.shelterIntegrity<30:name==='critical_standing'?s.shelterIntegrity>0:s.shelterIntegrity<=0;
+    }
+    const view=equipment[s.activeSlot-1],kit=s.activeSlot===5;
+    if(slot!==s.activeSlot){equipment.forEach((v,i)=>{if(v){v.root.visible=i===s.activeSlot-1;v.reset();}});slot=s.activeSlot;view?.play(kit?'kit_equip':'equip',true,.3);}
+    if(view){
+      if(kit&&s.turrets.length&&!hadTurret)view.play('kit_deploy',true);
+      if(s.shotSerial!==previousShot){view.play('fire',true);previousShot=s.shotSerial;flashUntil=s.time+.045;}
+      if(s.reloadSerial!==previousReload){view.play('reload',true,s.weapons[s.activeSlot-1].reload);previousReload=s.reloadSerial;}
+      if(view.finished)view.play(kit?'kit_idle':'idle');view.mixer.update(dt);
+      const socket=view.root.getObjectByName('socket_muzzle');camera.updateMatrixWorld(true);socket?.getWorldPosition(muzzle);
+      flash.position.copy(muzzle);flash.visible=!noFlash&&s.time<flashUntil&&s.activeSlot!==4;
+      flame.visible=s.activeSlot===4&&s.time-(s.lastShot?.time??-1)<.12;
+      if(flame.visible){camera.getWorldDirection(target);flame.position.copy(muzzle).addScaledVector(target,1.2);flame.scale.set(1,1.6,1);}
+    }
+    if(turret){
+      turret.root.visible=s.turrets.length>0;
+      if(turret.root.visible){if(!hadTurret)turret.play('sentry_idle');turret.root.getObjectByName('head_yaw').rotation.y=s.turrets[0].yaw;turret.lod(camera.position.distanceTo(turret.root.position));
+        if(s.turrets[0].reload>0&&!turretReloading)turret.play('sentry_reload',true,s.turrets[0].reload);
+        if(s.turretShotSerial!==previousTurretShot){turret.play('sentry_fire',true);previousTurretShot=s.turretShotSerial;}
+        if(turret.finished)turret.play('sentry_idle');turret.mixer.update(dt);
+      }
+      turretReloading=(s.turrets[0]?.reload??0)>0;hadTurret=s.turrets.length>0;
+    }
+    const ids=new Set(s.webs.map(w=>w.id));
+    for(const w of s.webs){let m=projectiles.get(w.id);if(!m){m=new THREE.Mesh(webGeometry,webMaterial);projectiles.set(w.id,m);scene.add(m);}m.position.set(w.x,w.y,w.z);}
+    for(const [id,m]of projectiles)if(!ids.has(id)){m.removeFromParent();projectiles.delete(id);}
+    scenery.update(s,s.visualDelta??dt,noFlash);renderer.render(scene,camera);
+  }
+  return {getScene:()=>scene,getCamera:()=>camera,install,render,reset,
+    setNoFlash(value){noFlash=Boolean(value);},
+    resize(w,h,dpr){camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setPixelRatio(Math.min(dpr,1.5));renderer.setSize(w,h);},
+    dispose(){reset();for(const values of pool.values())for(const v of values)v.dispose();pool.clear();installed.forEach(v=>v.dispose());scenery.dispose();shadowGeometry.dispose();shadowMaterial.dispose();webGeometry.dispose();webMaterial.dispose();muzzleMaterial.dispose();renderer.dispose();}
+  };
+}

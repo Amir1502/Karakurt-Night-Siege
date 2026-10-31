@@ -1,0 +1,285 @@
+{
+  "version": 1,
+  "waves": [
+    {
+      "index": 1,
+      "startDelay": 3,
+      "buildTime": 20,
+      "spawns": [
+        {
+          "spiderId": "karakurt_runner",
+          "count": 10,
+          "interval": 2.5,
+          "delay": 0
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "startDelay": 3,
+      "buildTime": 20,
+      "spawns": [
+        {
+          "spiderId": "karakurt_runner",
+          "count": 12,
+          "interval": 2.5,
+          "delay": 0
+        },
+        {
+          "spiderId": "karakurt_spitter",
+          "count": 2,
+          "interval": 10,
+          "delay": 10
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "startDelay": 3,
+      "buildTime": 20,
+      "spawns": [
+        {
+          "spiderId": "karakurt_runner",
+          "count": 12,
+          "interval": 2.5,
+          "delay": 0
+        },
+        {
+          "spiderId": "karakurt_spitter",
+          "count": 4,
+          "interval": 6,
+          "delay": 8
+        },
+        {
+          "spiderId": "tarantula_brute",
+          "count": 2,
+          "interval": 12,
+          "delay": 14
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "startDelay": 3,
+      "buildTime": 20,
+      "spawns": [
+        {
+          "spiderId": "karakurt_runner",
+          "count": 12,
+          "interval": 2.5,
+          "delay": 0
+        },
+        {
+          "spiderId": "karakurt_spitter",
+          "count": 4,
+          "interval": 7,
+          "delay": 8
+        },
+        {
+          "spiderId": "tarantula_brute",
+          "count": 4,
+          "interval": 7,
+          "delay": 12
+        },
+        {
+          "spiderId": "jumper_wolf",
+          "count": 2,
+          "interval": 12,
+          "delay": 18
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "startDelay": 3,
+      "buildTime": 20,
+      "spawns": [
+        {
+          "spiderId": "karakurt_runner",
+          "count": 14,
+          "interval": 2.5,
+          "delay": 0
+        },
+        {
+          "spiderId": "karakurt_spitter",
+          "count": 4,
+          "interval": 8,
+          "delay": 8
+        },
+        {
+          "spiderId": "tarantula_brute",
+          "count": 4,
+          "interval": 8,
+          "delay": 12
+        },
+        {
+          "spiderId": "jumper_wolf",
+          "count": 4,
+          "interval": 7,
+          "delay": 16
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "startDelay": 3,
+      "buildTime": 20,
+      "spawns": [
+        {
+          "spiderId": "karakurt_runner",
+          "count": 14,
+          "interval": 2.5,
+          "delay": 0
+        },
+        {
+          "spiderId": "karakurt_spitter",
+          "count": 6,
+          "interval": 6,
+          "delay": 8
+        },
+        {
+          "spiderId": "tarantula_brute",
+          "count": 5,
+          "interval": 7,
+          "delay": 12
+        },
+        {
+          "spiderId": "jumper_wolf",
+          "count": 5,
+          "interval": 6,
+          "delay": 16
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "startDelay": 3,
+      "buildTime": 20,
+      "spawns": [
+        {
+          "spiderId": "karakurt_runner",
+          "count": 16,
+          "interval": 2.5,
+          "delay": 0
+        },
+        {
+          "spiderId": "karakurt_spitter",
+          "count": 6,
+          "interval": 7,
+          "delay": 8
+        },
+        {
+          "spiderId": "tarantula_brute",
+          "count": 6,
+          "interval": 7,
+          "delay": 12
+        },
+        {
+          "spiderId": "jumper_wolf",
+          "count": 6,
+          "interval": 6,
+          "delay": 16
+        }
+      ]
+    },
+    {
+      "index": 8,
+      "startDelay": 3,
+      "buildTime": 20,
+      "spawns": [
+        {
+          "spiderId": "karakurt_runner",
+          "count": 16,
+          "interval": 2.5,
+          "delay": 0
+        },
+        {
+          "spiderId": "karakurt_spitter",
+          "count": 8,
+          "interval": 6,
+          "delay": 8
+        },
+        {
+          "spiderId": "tarantula_brute",
+          "count": 6,
+          "interval": 8,
+          "delay": 12
+        },
+        {
+          "spiderId": "jumper_wolf",
+          "count": 6,
+          "interval": 7,
+          "delay": 16
+        }
+      ]
+    },
+    {
+      "index": 9,
+      "startDelay": 3,
+      "buildTime": 20,
+      "spawns": [
+        {
+          "spiderId": "karakurt_runner",
+          "count": 16,
+          "interval": 2.5,
+          "delay": 0
+        },
+        {
+          "spiderId": "karakurt_spitter",
+          "count": 8,
+          "interval": 6,
+          "delay": 8
+        },
+        {
+          "spiderId": "tarantula_brute",
+          "count": 7,
+          "interval": 7,
+          "delay": 12
+        },
+        {
+          "spiderId": "jumper_wolf",
+          "count": 7,
+          "interval": 6,
+          "delay": 16
+        }
+      ]
+    },
+    {
+      "index": 10,
+      "startDelay": 3,
+      "buildTime": 25,
+      "spawns": [
+        {
+          "spiderId": "widow_queen",
+          "count": 1,
+          "interval": 1,
+          "delay": 0
+        },
+        {
+          "spiderId": "karakurt_runner",
+          "count": 16,
+          "interval": 2.5,
+          "delay": 4
+        },
+        {
+          "spiderId": "karakurt_spitter",
+          "count": 8,
+          "interval": 6,
+          "delay": 8
+        },
+        {
+          "spiderId": "tarantula_brute",
+          "count": 7,
+          "interval": 7,
+          "delay": 12
+        },
+        {
+          "spiderId": "jumper_wolf",
+          "count": 8,
+          "interval": 6,
+          "delay": 16
+        }
+      ]
+    }
+  ]
+}

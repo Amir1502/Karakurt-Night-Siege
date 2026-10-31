@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "weapons": [
+    {
+      "id": "pistol_makarov",
+      "name": "Пистолет Макарова",
+      "damage": 20,
+      "fireRate": 3,
+      "magazine": 12,
+      "reserve": 72,
+      "reloadTime": 1.4,
+      "spread": 1.2,
+      "range": 45,
+      "pellets": 1,
+      "unlockWave": 1
+    },
+    {
+      "id": "shotgun_trench",
+      "name": "Окопный дробовик",
+      "damage": 12,
+      "fireRate": 1,
+      "magazine": 6,
+      "reserve": 24,
+      "reloadTime": 2.6,
+      "spread": 7,
+      "range": 20,
+      "pellets": 8,
+      "unlockWave": 2
+    },
+    {
+      "id": "smg_scorpion",
+      "name": "ПП Скорпион",
+      "damage": 12,
+      "fireRate": 12,
+      "magazine": 30,
+      "reserve": 120,
+      "reloadTime": 2,
+      "spread": 3,
+      "range": 35,
+      "pellets": 1,
+      "unlockWave": 3
+    },
+    {
+      "id": "flamethrower_torch",
+      "name": "Огнемёт Факел",
+      "damage": 4,
+      "fireRate": 10,
+      "magazine": 100,
+      "reserve": 100,
+      "reloadTime": 3,
+      "spread": 18,
+      "range": 6,
+      "pellets": 1,
+      "unlockWave": 4
+    },
+    {
+      "id": "turret_sentry",
+      "name": "Турель Часовой",
+      "damage": 14,
+      "fireRate": 6,
+      "magazine": 60,
+      "reserve": 120,
+      "reloadTime": 2.5,
+      "spread": 2,
+      "range": 30,
+      "pellets": 1,
+      "unlockWave": 5
+    }
+  ]
+}

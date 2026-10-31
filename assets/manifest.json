@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "id": "karakurt_runner",
+      "path": "assets/models/karakurt_runner.glb",
+      "bytes": 289560,
+      "source": "art/exports/release_v2/karakurt_runner.glb"
+    },
+    {
+      "id": "karakurt_spitter",
+      "path": "assets/models/karakurt_spitter.glb",
+      "bytes": 287644,
+      "source": "art/exports/release_v2/karakurt_spitter.glb"
+    },
+    {
+      "id": "tarantula_brute",
+      "path": "assets/models/tarantula_brute.glb",
+      "bytes": 312112,
+      "source": "art/exports/release_v2/tarantula_brute.glb"
+    },
+    {
+      "id": "jumper_wolf",
+      "path": "assets/models/jumper_wolf.glb",
+      "bytes": 300236,
+      "source": "art/exports/release_v2/jumper_wolf.glb"
+    },
+    {
+      "id": "widow_queen",
+      "path": "assets/models/widow_queen.glb",
+      "bytes": 451040,
+      "source": "art/exports/release_v2/widow_queen.glb"
+    },
+    {
+      "id": "pistol_makarov",
+      "path": "assets/models/pistol_makarov.glb",
+      "bytes": 174196,
+      "source": "art/exports/atlas_v3/pistol_makarov.glb"
+    },
+    {
+      "id": "shotgun_trench",
+      "path": "assets/models/shotgun_trench.glb",
+      "bytes": 158392,
+      "source": "art/exports/release_v1/shotgun_trench.glb"
+    },
+    {
+      "id": "smg_scorpion",
+      "path": "assets/models/smg_scorpion.glb",
+      "bytes": 125236,
+      "source": "art/exports/release_v1/smg_scorpion.glb"
+    },
+    {
+      "id": "flamethrower_torch",
+      "path": "assets/models/flamethrower_torch.glb",
+      "bytes": 129400,
+      "source": "art/exports/release_v1/flamethrower_torch.glb"
+    },
+    {
+      "id": "turret_sentry",
+      "path": "assets/models/turret_sentry.glb",
+      "bytes": 160724,
+      "source": "art/exports/release_v2/turret_sentry.glb"
+    },
+    {
+      "id": "shelter",
+      "path": "assets/models/shelter.glb",
+      "bytes": 574284,
+      "source": "art/exports/atlas_v3/shelter.glb"
+    },
+    {
+      "id": "camp_props",
+      "path": "assets/models/camp_props.glb",
+      "bytes": 172784,
+      "source": "art/exports/release_v1/camp_props.glb"
+    },
+    {
+      "path": "assets/textures/spiders_albedo.webp",
+      "bytes": 18350,
+      "source": "art/textures/atlas_v3/spiders_albedo.webp"
+    },
+    {
+      "path": "assets/textures/weapons_albedo.webp",
+      "bytes": 138796,
+      "source": "art/textures/atlas_v3/weapons_albedo.webp"
+    },
+    {
+      "path": "assets/textures/shelter_albedo.webp",
+      "bytes": 150524,
+      "source": "art/textures/atlas_v3/shelter_albedo.webp"
+    },
+    {
+      "path": "assets/textures/desert_albedo.webp",
+      "bytes": 11540,
+      "source": "art/textures/release_v1/desert_albedo.webp"
+    },
+    {
+      "path": "assets/textures/fx_atlas.webp",
+      "bytes": 4502,
+      "source": "art/textures/release_v1/fx_atlas.webp"
+    }
+  ],
+  "totalBytes": 3459320
+}

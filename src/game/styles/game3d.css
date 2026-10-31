@@ -1,0 +1,518 @@
+/* «Ночь каракурта». Только 16 CSS-классов из арт- и клиентского ТЗ.
+   Цветные показатели стоят на непрозрачной подложке и не зависят от сцены.
+   В ТЗ нет класса режима «Без вспышек»: HUD по умолчанию не анимируется. */
+
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 16px;
+  background: #101827;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+canvas#game3d {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  background: #101827;
+  touch-action: none;
+}
+
+#hud3d {
+  --panel: #101820;
+  --text: #F3F0E7;
+  --muted: #BEC9D4;
+  --accent: #FFBC70;
+  --focus: #8EE6D1;
+  --danger: #FF707B;
+  --edge: 24px;
+  --border: #697a8a;
+  --radius: 8px;
+  --space: 16px;
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+#hud3d,
+#hud3d *,
+#hud3d *::before,
+#hud3d *::after {
+  box-sizing: border-box;
+}
+
+#hud3d [hidden],
+#hud3d .overlay--hidden {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+#hud3d .hud {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(24.5rem, 1.6fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "shelter wave ." ". . ." "health weapons ammo";
+  gap: 12px;
+  padding: max(var(--edge), env(safe-area-inset-top, 0px))
+    max(var(--edge), env(safe-area-inset-right, 0px))
+    max(var(--edge), env(safe-area-inset-bottom, 0px))
+    max(var(--edge), env(safe-area-inset-left, 0px));
+  background: transparent;
+  pointer-events: none;
+}
+
+#hud3d :is(.hud-health, .hud-ammo, .hud-wave, .hud-shelter) {
+  align-self: start;
+  width: 100%;
+  min-width: 0;
+  padding: 12px 16px;
+  border: 1px solid #35445C;
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 4px 16px #00000040;
+  overflow-wrap: anywhere;
+}
+
+#hud3d .hud-health { grid-area: health; align-self: end; max-width: 200px; }
+#hud3d .hud-ammo { grid-area: ammo; align-self: end; justify-self: end; max-width: 200px; }
+#hud3d .hud-wave { grid-area: wave; justify-self: center; max-width: 300px; text-align: center; }
+#hud3d .hud-shelter { grid-area: shelter; max-width: 260px; }
+
+#hud3d :is(.hud-health, .hud-ammo, .hud-wave, .hud-shelter) :is(strong, output) {
+  color: inherit;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+#hud3d small {
+  display: block;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+#hud3d em {
+  color: var(--danger);
+  font-style: normal;
+  font-weight: 700;
+}
+
+#hud3d :is(p, ul, ol) { margin-block: 0; }
+#hud3d p + p { margin-top: 8px; }
+
+#hud3d :is(progress, meter) {
+  display: block;
+  width: 100%;
+  height: 10px;
+  margin-top: 8px;
+  overflow: hidden;
+  border: 1px solid var(--muted);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--focus);
+  accent-color: var(--focus);
+}
+
+#hud3d progress { appearance: none; }
+#hud3d progress::-webkit-progress-bar { background: var(--panel); }
+#hud3d progress::-webkit-progress-value { background: currentColor; }
+#hud3d progress::-moz-progress-bar { background: currentColor; }
+#hud3d meter::-webkit-meter-bar { border: 0; background: var(--panel); }
+#hud3d meter::-webkit-meter-optimum-value { background: var(--focus); }
+#hud3d meter::-webkit-meter-suboptimum-value { background: var(--accent); }
+#hud3d meter::-webkit-meter-even-less-good-value { background: var(--danger); }
+#hud3d meter::-moz-meter-bar { background: currentColor; }
+
+#hud3d .hud-weapon-list {
+  grid-area: weapons;
+  align-self: end;
+  justify-self: center;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  max-width: 560px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#hud3d .hud-weapon-slot {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 60px;
+  padding: 8px 6px;
+  border: 3px solid transparent;
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--muted);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+#hud3d .hud-weapon-slot[aria-disabled="true"] {
+  border-color: var(--muted);
+  border-style: dashed;
+  box-shadow: none;
+}
+
+#hud3d .hud-weapon-slot--active {
+  border-color: var(--accent);
+  border-style: solid;
+  background: var(--accent);
+  color: var(--panel);
+  box-shadow: none;
+}
+
+#hud3d .hud-weapon-slot--active :is(small, strong, output, kbd) {
+  background: transparent;
+  color: var(--panel);
+  border-color: var(--panel);
+}
+
+/* Геометрия прицела не зависит от шрифта. Тёмный кант виден на костре. */
+#hud3d :is(.hud-crosshair, .hud-hitmarker) {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  transform: translate(-50%, -50%);
+  color: var(--text);
+  pointer-events: none;
+}
+
+#hud3d :is(.hud-crosshair, .hud-hitmarker)::before,
+#hud3d :is(.hud-crosshair, .hud-hitmarker)::after {
+  content: "";
+  position: absolute;
+  top: calc(50% - 1px);
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, currentColor 0 33%, transparent 33% 67%, currentColor 67%);
+  filter: drop-shadow(1px 0 0 #101820) drop-shadow(-1px 0 0 #101820)
+    drop-shadow(0 1px 0 #101820) drop-shadow(0 -1px 0 #101820);
+}
+
+#hud3d .hud-crosshair::after { transform: rotate(90deg); }
+
+/* HUD ставит hidden вне подтверждённого попадания и сам ведёт таймер.
+   Повторное попадание продлевает показ; CSS не запускает мигание заново. */
+#hud3d .hud-hitmarker { width: 32px; height: 32px; }
+#hud3d .hud-hitmarker::before,
+#hud3d .hud-hitmarker::after {
+  background: linear-gradient(90deg, currentColor 0 25%, transparent 25% 75%, currentColor 75%);
+}
+#hud3d .hud-hitmarker::before { transform: rotate(45deg); }
+#hud3d .hud-hitmarker::after { transform: rotate(-45deg); }
+
+#hud3d .overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  padding: calc(max(var(--edge), env(safe-area-inset-top, 0px)) + 64px)
+    max(var(--edge), env(safe-area-inset-right, 0px))
+    max(var(--edge), env(safe-area-inset-bottom, 0px))
+    max(var(--edge), env(safe-area-inset-left, 0px));
+  overflow: hidden;
+  background: rgb(16 24 32 / 38%);
+  color: var(--text);
+  pointer-events: auto;
+}
+
+/* Единственная карточка без нового класса: .overlay > section.
+   div/article допускаются для той же семантической обёртки загрузки.
+   Прокручивается карточка, а не страница; звук остаётся вне её границ. */
+#hud3d .overlay > :is(section, article, div) {
+  width: min(480px, 100%);
+  max-height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 24px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scroll-padding-block: 12px;
+  border: 1px solid #35445C;
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 16px 48px #00000066;
+}
+
+@media (min-width: 1000px) {
+  #hud3d .overlay { justify-items: start; padding-left: max(var(--edge), 5vw); }
+}
+
+#hud3d .overlay-title {
+  margin: 0 0 16px;
+  color: var(--text);
+  font-size: clamp(2.25rem, 3.5vw, 3rem);
+  font-weight: 750;
+  line-height: 1.2;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+#hud3d .overlay-text {
+  min-width: 0;
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+#hud3d .overlay-text > * + * { margin-top: 12px; }
+#hud3d #record { color: var(--accent); margin-top: var(--space); }
+#hud3d #controls { color: var(--muted); }
+#hud3d #controls summary { min-height: 44px; cursor: pointer; padding-block: 10px; }
+#hud3d #controls summary:hover { color: var(--text); }
+#hud3d #controls summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+#hud3d #buy {
+  width: 100%; min-height: 48px; padding: var(--space); border: 1px solid var(--border);
+  border-radius: var(--radius); background: var(--panel); color: var(--text); font: inherit; cursor: pointer;
+}
+#hud3d #buy:hover { border-color: var(--accent); color: var(--accent); }
+#hud3d #buy:active { background: var(--accent); color: var(--panel); }
+#hud3d #buy:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+#hud3d #buy:disabled { opacity: .5; cursor: default; }
+#hud3d .overlay-text :is(ul, ol) { padding-left: 24px; }
+#hud3d .overlay-text li + li { margin-top: 4px; }
+
+#hud3d kbd {
+  display: inline-block;
+  padding: 0 5px;
+  border: 1px solid var(--muted);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+}
+
+#hud3d :is(.btn-start, .btn-mute) {
+  display: block;
+  max-width: 100%;
+  min-height: 48px;
+  padding: 10px 20px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#hud3d .btn-start {
+  min-width: min(180px, 100%);
+  margin: 24px auto 0;
+  background: var(--accent);
+  color: var(--panel);
+}
+
+#hud3d .btn-mute {
+  position: absolute;
+  top: max(var(--edge), env(safe-area-inset-top, 0px));
+  right: max(var(--edge), env(safe-area-inset-right, 0px));
+  z-index: 20;
+  max-width: calc(100% - 2 * var(--edge));
+  min-width: 44px;
+  padding-inline: 16px;
+  border-color: var(--muted);
+  background: var(--panel);
+  color: var(--text);
+  visibility: visible;
+}
+
+#hud3d .btn-mute[aria-pressed="true"] { border-style: dashed; }
+
+@media (hover: hover) {
+  #hud3d .btn-start:where(:not(:disabled):not([aria-disabled="true"])):hover {
+    background: var(--text);
+    color: var(--panel);
+  }
+
+  #hud3d .btn-mute:where(:not(:disabled):not([aria-disabled="true"])):hover {
+    border-color: var(--accent);
+    background: #35445C;
+    color: var(--text);
+  }
+}
+
+#hud3d .btn-start:where(:not(:disabled):not([aria-disabled="true"])):active {
+  background: #E87738;
+  color: var(--panel);
+  box-shadow: inset 0 0 0 2px var(--panel);
+}
+
+#hud3d .btn-mute:where(:not(:disabled):not([aria-disabled="true"])):active {
+  background: var(--accent);
+  color: var(--panel);
+}
+
+#hud3d :is(.btn-start, .btn-mute):is(:disabled, [aria-disabled="true"]) {
+  background: #35445C;
+  color: var(--text);
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+#hud3d .overlay-text label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--muted);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+#hud3d input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--focus);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#hud3d .overlay-text label:hover { border-color: var(--accent); }
+
+/* Контур не сбрасывается на hover/active. Тёмный зазор отделяет его
+   и от светлой кнопки, и от любой сцены под доступным переключателем. */
+#hud3d :is(button, input, a, [tabindex]):is(:focus, :focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 3px var(--panel);
+}
+
+#hud3d .btn-start:where(:not(:disabled):not([aria-disabled="true"])):active:is(:focus, :focus-visible) {
+  box-shadow: 0 0 0 3px var(--panel), inset 0 0 0 2px var(--panel);
+}
+
+#hud3d a { color: var(--focus); text-underline-offset: 3px; }
+#hud3d a:hover { text-decoration-thickness: 2px; }
+
+#hud3d:has(.overlay:not(.overlay--hidden):not([hidden]))
+  :is(.hud-health, .hud-ammo, .hud-wave, .hud-shelter, .hud-weapon-list, .hud-crosshair, .hud-hitmarker) {
+  visibility: hidden;
+}
+
+@media (max-width: 899px) {
+  #hud3d { --edge: 16px; }
+
+  #hud3d .hud {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "shelter wave" ". ." "weapons weapons" "health ammo";
+  }
+
+  #hud3d .hud-wave {
+    justify-self: end;
+    margin-top: 64px;
+  }
+
+  #hud3d .hud-weapon-list { max-width: 560px; }
+}
+
+@media (max-width: 479px) {
+  #hud3d .hud {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+    grid-template-areas: "shelter" "wave" "." "weapons" "health" "ammo";
+    padding-top: calc(max(var(--edge), env(safe-area-inset-top, 0px)) + 64px);
+  }
+
+  #hud3d :is(.hud-health, .hud-ammo, .hud-wave, .hud-shelter) {
+    max-width: none;
+    margin: 0;
+    padding: 8px 12px;
+  }
+
+  #hud3d .hud-weapon-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #hud3d .hud-weapon-slot { padding: 6px 4px; }
+  #hud3d .overlay > :is(section, article, div) { padding: 20px 16px; }
+  #hud3d .overlay-title { font-size: 1.75rem; }
+  #hud3d .btn-start { width: 100%; }
+}
+
+@media (max-height: 599px) and (min-width: 480px) {
+  #hud3d :is(.hud-health, .hud-ammo, .hud-wave, .hud-shelter) {
+    padding: 8px 12px;
+  }
+
+  #hud3d .hud-weapon-slot { padding-block: 6px; }
+  #hud3d .overlay > :is(section, article, div) { padding: 20px 24px; }
+}
+
+/* CSS не создаёт пульсацию ни в обычном режиме, ни в режиме без вспышек.
+   Системный reduce также отменяет будущие переходы и анимации потомков;
+   обновление чисел, hidden и фокуса от этого не задерживается. */
+@media (prefers-reduced-motion: reduce) {
+  #hud3d,
+  #hud3d *,
+  #hud3d *::before,
+  #hud3d *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (forced-colors: active) {
+  #hud3d :is(.hud-health, .hud-ammo, .hud-wave, .hud-shelter),
+  #hud3d .overlay > :is(section, article, div) {
+    border-color: CanvasText;
+  }
+
+  #hud3d :is(button, input, a, [tabindex]):is(:focus, :focus-visible) {
+    outline-color: Highlight;
+  }
+
+  #hud3d .hud-weapon-slot--active { outline: 3px solid Highlight; outline-offset: -3px; }
+  #hud3d :is(.hud-crosshair, .hud-hitmarker) { forced-color-adjust: none; }
+}
