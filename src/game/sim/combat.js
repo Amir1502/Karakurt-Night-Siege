@@ -1,4 +1,5 @@
 import { DT, angleDelta, clamp, distance, visible, wallDistance } from './physics.js';
+import { effectiveWeapon } from '../data/upgrades.js';
 export function damageSpider(s, enemy, amount, source) {
   if (enemy.health <= 0) return 0;
   const applied = Math.min(enemy.health, amount);
@@ -51,7 +52,7 @@ export function updateWeapons(s, config, input, previous, emit, random) {
     emit('weapon:switch',{fromId,toId:config.weapons[i].id,slot:i+1});
   }
   s.switchTime=Math.max(0,s.switchTime-DT);
-  const i=s.activeSlot-1, a=s.weapons[i], w=config.weapons[i];
+  const i=s.activeSlot-1, a=s.weapons[i], w=effectiveWeapon(config.weapons[i],a.level,a.modification);
   for(const ammo of s.weapons) ammo.cooldown=Math.max(0,ammo.cooldown-DT);
   if(a.reload>0) {
     a.reload=Math.max(0,a.reload-DT);

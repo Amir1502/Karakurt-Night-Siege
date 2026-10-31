@@ -70,8 +70,8 @@
     {
       "id": "camp_props",
       "path": "assets/models/camp_props.glb",
-      "bytes": 172784,
-      "source": "art/exports/release_v1/camp_props.glb"
+      "bytes": 558368,
+      "source": "art/exports/e2_v1/camp_props.glb"
     },
     {
       "path": "assets/textures/spiders_albedo.webp",
@@ -99,5 +99,5 @@
       "source": "art/textures/release_v1/fx_atlas.webp"
     }
   ],
-  "totalBytes": 3459320
+  "totalBytes": 3844904
 }

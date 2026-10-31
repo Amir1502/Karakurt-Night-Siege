@@ -1,9 +1,12 @@
 export const SAVE_KEY = 'svh3d.save.v1';
 const defaults = () => ({ version: 1, bestWave: 0, bestTime: 0, kills: 0, muted: false });
 const fields = Object.keys(defaults()).sort().join(',');
+// Optional progress extension preserves the shape of existing v1 saves and defaults.
+const endlessFields = [...Object.keys(defaults()), 'bestEndless'].sort().join(',');
 function valid(s, version = 1) {
-  return s && typeof s === 'object' && Object.keys(s).sort().join(',') === fields && s.version === version
+  return s && typeof s === 'object' && [fields, endlessFields].includes(Object.keys(s).sort().join(',')) && s.version === version
     && Number.isSafeInteger(s.bestWave) && s.bestWave >= 0 && s.bestWave <= 10
+    && (!Object.hasOwn(s, 'bestEndless') || Number.isSafeInteger(s.bestEndless) && (s.bestEndless === 0 || s.bestEndless >= 11))
     && ['bestTime', 'kills'].every(k => Number.isSafeInteger(s[k]) && s[k] >= 0) && typeof s.muted === 'boolean';
 }
 function parse(raw, version) {
@@ -12,6 +15,7 @@ function parse(raw, version) {
 }
 export function writeSave(storage, data) {
   const s = Object.fromEntries(Object.keys(defaults()).map(k => [k, data[k]]));
+  if (Object.hasOwn(data, 'bestEndless')) s.bestEndless = data.bestEndless;
   s.bestTime = Math.floor(s.bestTime);
   if (!valid(s)) return { ok: false, reason: 'invalid' };
   try { storage.setItem(SAVE_KEY, JSON.stringify(s)); return { ok: true }; }

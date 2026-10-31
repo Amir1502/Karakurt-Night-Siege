@@ -1,14 +1,18 @@
 import { DT, clamp, distance, visible, move, insideShelter } from './physics.js';
+import { triggerTraps } from './traps.js';
 const MOD = {karakurt_runner:.2,karakurt_spitter:0,tarantula_brute:.4,jumper_wolf:0,widow_queen:.25};
-function damage(s, target, amount, source, kind, emit) {
+function damage(s, target, amount, source, kind, emit, direction) {
   if(amount<=0) return;
   if(target==='player') {
     if(kind==='contact'&&s.player.contactSafe>0) return;
     const applied=Math.min(s.player.health,amount);s.player.health-=applied;
+    if(s.stats&&applied>0) s.stats.playerDamage+=applied;
     if(kind==='contact') s.player.contactSafe=.35;
-    emit('player:damage',{amount:applied,health:s.player.health,source,kind});
+    const attacker=s.spiders.find(e=>e.id===source),dx=direction?.x??(attacker?attacker.x-s.player.x:0),dz=direction?.z??(attacker?attacker.z-s.player.z:0),length=Math.hypot(dx,dz);
+    emit('player:damage',{amount:applied,health:s.player.health,source,kind,...(length>1e-6?{direction:{x:dx/length||0,z:dz/length||0}}:{})});
   } else {
     const applied=Math.min(s.shelterIntegrity,amount);s.shelterIntegrity-=applied;
+    if(s.stats&&applied>0) s.stats.shelterDamage+=applied;
     emit('shelter:damage',{amount:applied,shelterIntegrity:s.shelterIntegrity,source,kind});
   }
 }
@@ -27,6 +31,9 @@ export function updateEnemies(s,config,emit) {
   const slots=new Map();
   for(const e of s.spiders) {
     if(e.health<=0) continue;
+    if(e.stun>0) {
+      e.stun=Math.max(0,e.stun-DT);if(e.stun<1e-9){e.stun=0;e.state='walk';}continue;
+    }
     const def=config.spiders.find(d=>d.id===e.spiderId), p=s.player;
     e.cooldown=Math.max(0,e.cooldown-DT);e.aggro=Math.max(0,e.aggro-DT);e.spitCooldown-=DT;
     e.enraged=e.enraged||(def.behavior==='boss'&&e.health<=e.maxHealth*.5);
@@ -47,11 +54,14 @@ export function updateEnemies(s,config,emit) {
       const nx=e.attack.fromX+(e.attack.x-e.attack.fromX)*t,nz=e.attack.fromZ+(e.attack.z-e.attack.fromZ)*t;
       move(e,nx-e.x,nz-e.z,e.radius,40);e.y=4*t*(1-t)*1.8;
       if(e.timer<=0) {e.y=0;e.state='land';e.timer=.15;e.cooldown=def.attackCooldown;
+        triggerTraps(s);if(e.stun>0)continue;
         if(distance(e,p)<=1.2&&visible(e,p)) damage(s,'player',def.damage,e.id,'contact',emit);}
       continue;
     }
     if(e.state==='charge') {
-      e.timer-=DT;move(e,e.attack.dx*def.speed*2.5*DT,e.attack.dz*def.speed*2.5*DT,e.radius,40);
+      const speed=def.speed*(e.elite?1.2:1);
+      e.timer-=DT;move(e,e.attack.dx*speed*2.5*DT,e.attack.dz*speed*2.5*DT,e.radius,40);
+      triggerTraps(s);if(e.stun>0)continue;
       if(!e.attack.hit) {
         if(distance(e,p)-e.radius-.35<=def.attackRange&&visible(e,p)) {damage(s,'player',def.damage,e.id,'contact',emit);e.attack.hit=true;}
         else if(distance(e,wallTarget)<.3&&permitted) {damage(s,'shelter',def.damage*MOD[e.spiderId],e.id,'contact',emit);e.attack.hit=true;}
@@ -77,15 +87,16 @@ export function updateEnemies(s,config,emit) {
     }
     if(!permitted&&gap<3) {e.state='idle';continue;}
     e.state='walk';
-    let speed=def.speed*(e.enraged?1.3:1);
+    let speed=def.speed*(e.enraged?1.3:1)*(e.elite?1.2:1);
     if(def.behavior==='spit'&&pd<8) speed=-speed;
     else if(def.behavior==='spit'&&pd<=14&&sight) speed=0;
     if(gap>Math.min(def.attackRange*.65,1)||def.behavior==='spit') approach(e,target,speed);
+    triggerTraps(s);
   }
   for(const web of s.webs) {
     web.life-=DT;web.x+=web.vx*DT;web.z+=web.vz*DT;
     if(insideShelter(web.x,web.z,.25)) web.life=0;
-    else if(distance(web,s.player)<.6&&s.player.y<.75) {damage(s,'player',web.damage,web.source,'projectile',emit);web.life=0;}
+    else if(distance(web,s.player)<.6&&s.player.y<.75) {damage(s,'player',web.damage,web.source,'projectile',emit,{x:-web.vx,z:-web.vz});web.life=0;}
   }
   s.webs=s.webs.filter(w=>w.life>0);
 }

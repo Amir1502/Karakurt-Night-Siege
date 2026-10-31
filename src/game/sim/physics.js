@@ -1,3 +1,5 @@
+import { DASH } from '../data/dash.js';
+
 export const DT = 1 / 60;
 export const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 export const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -45,14 +47,29 @@ export function updatePlayer(s, input, previous) {
   const right = Number(!!input.KeyD) - Number(!!input.KeyA);
   const forward = Number(!!input.KeyW) - Number(!!input.KeyS);
   const norm = Math.hypot(right, forward) || 1;
-  const sprint = !!(input.ShiftLeft || input.ShiftRight) && !!(right || forward) && p.stamina > 0 && !input.fire;
+  p.dashCooldown=Math.max(0,(p.dashCooldown??0)-DT);
+  p.dashTime??=0;
+  if(input.KeyC&&!previous.KeyC&&!p.dashTime&&p.dashCooldown<1e-9&&p.y===0&&p.vy===0&&(right||forward)&&p.stamina>=DASH.cost){
+    p.stamina-=DASH.cost;p.dashTime=DASH.duration;p.dashCooldown=DASH.cooldown;
+    p.dashX=(right*Math.cos(p.yaw)-forward*Math.sin(p.yaw))/norm;
+    p.dashZ=(-right*Math.sin(p.yaw)-forward*Math.cos(p.yaw))/norm;
+  }
+  const dashing=p.dashTime>0;
+  const sprint = !dashing && !!(input.ShiftLeft || input.ShiftRight) && !!(right || forward) && p.stamina > 0 && !input.fire;
   p.running = sprint;
-  p.rest = sprint ? 0 : p.rest + DT;
-  p.stamina = clamp(p.stamina + (sprint ? -25 : p.rest >= 1 ? 20 : 0) * DT, 0, 100);
-  const speed = (sprint ? 7 : 4.5) * DT * (p.y > 0 ? 0.3 : 1);
-  move(p, (right*Math.cos(p.yaw)-forward*Math.sin(p.yaw))/norm*speed,
-    (-right*Math.sin(p.yaw)-forward*Math.cos(p.yaw))/norm*speed);
-  if (input.Space && !previous.Space && p.y === 0) p.vy = 5;
+  p.rest = sprint || dashing ? 0 : p.rest + DT;
+  p.stamina = clamp(p.stamina + (sprint ? -25 : !dashing && p.rest >= 1 ? 20 : 0) * DT, 0, 100);
+  if(dashing){
+    const elapsed=Math.min(DT,p.dashTime),speed=DASH.distance/DASH.duration;
+    const moved=move(p,p.dashX*speed*elapsed,p.dashZ*speed*elapsed);
+    p.dashTime=Math.max(0,p.dashTime-elapsed);
+    if(p.dashTime<1e-9||moved<1e-9)p.dashTime=0;
+  } else {
+    const speed = (sprint ? 7 : 4.5) * DT * (p.y > 0 ? 0.3 : 1);
+    move(p, (right*Math.cos(p.yaw)-forward*Math.sin(p.yaw))/norm*speed,
+      (-right*Math.sin(p.yaw)-forward*Math.cos(p.yaw))/norm*speed);
+  }
+  if (input.Space && !previous.Space && p.y === 0 && !dashing) p.vy = 5;
   p.vy -= 15*DT; p.y = Math.max(0, p.y+p.vy*DT);
   if (p.y === 0) p.vy = 0;
   p.contactSafe = Math.max(0, p.contactSafe-DT);

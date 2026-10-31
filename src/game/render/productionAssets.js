@@ -40,10 +40,11 @@ export function instantiateAsset(catalog, id) {
   const root = clone(gltf.scene), mixer = new THREE.AnimationMixer(root);
   const actions = new Map(gltf.animations.map(c => [c.name, mixer.clipAction(c)]));
   const levels=[];root.traverse(n=>{if(/(?:^|_)LOD[012]$/.test(n.name)) levels.push(n);});
-  let current = '', selected = -1;
+  let current = '', selected = -1, elapsed = 0;
   return {root, mixer, actions,
     play(name, force = false, duration = 0) {
       if ((!force && name === current) || !actions.has(name)) return;
+      if(elapsed){mixer.update(elapsed);elapsed=0;}
       const previous = actions.get(current), action = actions.get(name);
       if (previous && previous!==action) previous.fadeOut(.08);
       const loop=['idle','walk','kit_idle','sentry_idle'].includes(name);
@@ -51,8 +52,9 @@ export function instantiateAsset(catalog, id) {
       action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce,loop ? Infinity : 1);
       action.clampWhenFinished = true; action.fadeIn(.08).play(); current = name;
     },
+    update(dt,visible=true){elapsed+=dt;if(visible){mixer.update(elapsed);elapsed=0;}},
     get finished(){return actions.get(current)?.paused??false;},
-    reset(){mixer.stopAllAction();mixer.setTime(0);current='';selected=-1;},
+    reset(){mixer.stopAllAction();mixer.setTime(0);current='';selected=-1;elapsed=0;},
     lod(distance) {
       const next=distance<12?0:distance<24?1:2;if(next===selected)return;selected=next;
       for(const n of levels){const max=levels.some(l=>l.name==='LOD2')?2:1;n.visible=n.name.endsWith('LOD'+Math.min(max,next));}

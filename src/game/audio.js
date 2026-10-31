@@ -54,9 +54,9 @@ export function createAudio(assets, bus, initialMuted=false, initialVolumes={}) 
   }
  }
  async function unlockFromGesture(){try{if(disposed)return false;if(!context)init();await context.resume();schedule();return context.state==='running';}catch{return false;}}
- function burst(cutoff,volume,duration,start){
+ function burst(cutoff,volume,duration,start,rate=1){
   const source=context.createBufferSource(),filter=context.createBiquadFilter(),gain=context.createGain();
-  source.buffer=ambience;filter.type='lowpass';filter.frequency.setValueAtTime(cutoff,start);filter.frequency.exponentialRampToValueAtTime(Math.max(120,cutoff*.15),start+duration);
+  source.buffer=ambience;if(rate!==1)source.playbackRate.value=rate;filter.type='lowpass';filter.frequency.setValueAtTime(cutoff,start);filter.frequency.exponentialRampToValueAtTime(Math.max(120,cutoff*.15),start+duration);
   gain.gain.setValueAtTime(volume,start);gain.gain.exponentialRampToValueAtTime(.0001,start+duration);
   source.connect(filter).connect(gain).connect(sfx);
   voices++;source.onended=()=>{voices--;source.disconnect();filter.disconnect();gain.disconnect();};
@@ -74,14 +74,19 @@ export function createAudio(assets, bus, initialMuted=false, initialVolumes={}) 
     if(variant!==4)tone(sfx,'square',1800,now,.025,.05,{attack:.001,glide:.4});break;}
    case 'reload':burst(2400,.25,.06,now);burst(3000,.22,.05,now+.18);break;
    case 'hit':tone(sfx,'square',1350,now,.05,.08,{attack:.001,glide:.7,cutoff:4000});tone(sfx,'sine',190,now,.09,.18,{attack:.002,glide:.5});break;
+   case 'kill':burst(600,.2,.12,now);tone(sfx,'sine',140,now,.12,.15,{attack:.002,glide:.4});break;
+   case 'boss_kill':burst(420,.38,.36,now);tone(sfx,'sine',70,now,.4,.3,{attack:.002,glide:.4});break;
    case 'damage':burst(300,.3,.25,now);tone(sfx,'sine',80,now,.25,.25,{attack:.005,glide:.6});break;
-   case 'shelter':burst(800,.25,.3,now);break;
-   case 'spawn':burst(1100,.045,.2,now);break;
+    case 'shelter':burst(1200,.25,.12,now);tone(sfx,'triangle',220,now,.16,.18,{attack:.002,glide:.55});break;
+    case 'charge_windup':burst(500,.2,.24,now);tone(sfx,'sine',65,now,.25,.22,{attack:.01,glide:.65});break;
+    case 'shelter_critical':burst(1500,.15,.12,now);tone(sfx,'triangle',440,now,.12,.2,{attack:.003});tone(sfx,'triangle',330,now+.18,.18,.2,{attack:.003});break;
+   case 'spawn':burst(variant===.5?550:1100,.045,.2,now,variant);break;
    default:{const f={wave:330,clear:440,win:520,lose:110,switch:260}[cue]||220,d=cue==='wave'?.6:.2;tone(sfx,'sine',f,now,d,.2,{attack:.005,glide:.65});}
   }
  }
- const cues={'wave:start':'wave','wave:clear':'clear','player:damage':'damage','shelter:damage':'shelter','weapon:switch':'switch','spider:spawn':'spawn','run:win':'win','run:lose':'lose'};
- const off=Object.entries(cues).map(([name,cue])=>bus.on(name,()=>play(cue)));
+ const cues={'wave:start':'wave','wave:clear':'clear','player:damage':'damage','shelter:damage':'shelter','weapon:switch':'switch','spider:spawn':'spawn','spider:death':'kill','run:win':'win','run:lose':'lose'};
+ const off=Object.entries(cues).map(([name,cue])=>bus.on(name,e=>play(cue,cue==='spawn'&&e?.elite?.5:1)));
+ off.push(bus.on('spider:death',e=>{if(e.spiderId==='widow_queen')play('boss_kill');}));
  const set=(node,value)=>{if(node)node.gain.setValueAtTime(value,context.currentTime);};
  return {unlockFromGesture,resumeFromGesture:unlockFromGesture,play,
   setMuted(v){muted=v;set(master,muted?0:.65);},isMuted:()=>muted,
