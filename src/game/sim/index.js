@@ -8,6 +8,11 @@ import { createRunStats, creditScrap } from './runStats.js';
 export { getRunSummary } from './runStats.js';
 import { updateSupply } from './supply.js';
 import { createPreparationHold } from './preparation.js';
+import { COMBAT_FEEL } from '../data/combatFeel.js';
+import { interactBarricade } from './barricades.js';
+import { updateNest } from './nests.js';
+import { BROOD } from '../data/nests.js';
+import { obstacleAt } from './obstacles.js';
 export function createSim(config, { seed = 1 } = {}) {
   const slots = ['pistol_makarov', 'shotgun_trench', 'smg_scorpion', 'flamethrower_torch', 'turret_sentry'];
   config = { ...config, weapons: slots.map(id => config.weapons.find(w => w.id === id)) };
@@ -28,8 +33,8 @@ export function createSim(config, { seed = 1 } = {}) {
     s={phase:'build',subphase:'build',time:0,tick:0,wave:1,clearedWaves:0,kills:0,scrap:60,bestTime,shelterIntegrity:100,stats:createRunStats(),
       player:{x:4.8,z:5.8,y:0,vy:0,yaw:0,pitch:0,health:100,stamina:100,rest:0,contactSafe:0,running:false,dashTime:0,dashCooldown:0,dashX:0,dashZ:0},
       spiders:[],turrets:[],webs:[],boss:null,activeSlot:1,switchTime:0,shotSerial:0,hitSerial:0,reloadSerial:0,turretShotSerial:0,
-      traps:[],trapStock:0,trapSerial:0,trapEffects:[],
-      supply:null,supplyWave:0,supplyPickup:null,
+      traps:[],trapStock:0,trapSerial:0,trapEffects:[],impacts:[],impactSerial:0,barricades:[],barricadeNotice:null,
+      supply:null,supplyWave:0,supplyPickup:null,nest:null,nestWave:0,nestNotice:null,
       weapons:config.weapons.map(w=>({id:w.id,level:1,modification:null,unlocked:false,magazine:0,reserve:0,reload:0,cooldown:0})),
       lastAction:null,lastShot:null,warnings:[],remaining:config.waves[0].buildTime,startHold:0,result:null};
     unlock(s,config);schedule();
@@ -47,6 +52,16 @@ export function createSim(config, { seed = 1 } = {}) {
     s.spiders.push(e);
     emit('spider:spawn',{entity:{id:e.id,generation:e.generation},spiderId:e.spiderId,waveIndex:s.wave,spawnToken:`${runId}:${s.wave}:${q.index}:${q.k}`,position,...(e.elite?{elite:true}:{})});
   }
+  function spawnBrood(nest){
+    const positions=Array.from({length:8},(_,i)=>{const angle=nest.emitted*2.399963+s.wave*.7+i*Math.PI/4;return {x:nest.x+Math.cos(angle)*1.4,z:nest.z+Math.sin(angle)*1.4};});
+    const position=positions.find(p=>!obstacleAt(s,p.x,p.z,BROOD.radius,0)&&!s.spiders.some(e=>e.health>0&&Math.hypot(e.x-p.x,e.z-p.z)<e.radius+BROOD.radius));
+    if(!position)return false;
+    const e={id:nextId++,generation:runId,spiderId:'karakurt_runner',...position,y:0,health:BROOD.health,maxHealth:BROOD.health,radius:BROOD.radius,height:BROOD.height,visualScale:BROOD.scale,
+      brood:true,broodNest:nest.id,yaw:0,state:'walk',timer:0,cooldown:0,spitCooldown:6,aggro:0,target:'shelter',enraged:false,lastSource:'player',attack:null};
+    s.spiders.push(e);
+    emit('spider:spawn',{entity:{id:e.id,generation:e.generation},spiderId:e.spiderId,waveIndex:s.wave,spawnToken:`${runId}:${s.wave}:brood:${nest.emitted}`,position:{...position,y:0},brood:true});
+    return true;
+  }
   function step(input={}) {
     if(s.phase==='victory'&&input.action==='endless') {
       s.wave=11;s.phase='build';s.subphase='build';s.result=null;phaseTick=combatTick=releaseAt=0;previous={};
@@ -55,6 +70,7 @@ export function createSim(config, { seed = 1 } = {}) {
     }
     if(s.phase==='victory'||s.phase==='defeat') return;
     s.tick++;s.time=s.tick*DT;s.bestTime=Math.max(s.bestTime,Math.floor(s.time));
+    s.impacts=s.impacts.filter(h=>s.time-h.time<COMBAT_FEEL.impactLife);
     updatePlayer(s,input,previous);
     phaseTick++;
     const wave=waveDefinition();
@@ -86,10 +102,11 @@ export function createSim(config, { seed = 1 } = {}) {
     else if(input.KeyX&&!previous.KeyX) interact(s,'mod_wide',SITE);
     if(input.KeyT&&!previous.KeyT) interact(s,'trap',SITE);
     if(input.KeyG&&!previous.KeyG) placeTrap(s);
+    if(input.KeyB&&!previous.KeyB) interactBarricade(s);
     s.trapEffects=s.trapEffects.filter(t=>t.until>s.time);
     if(s.phase==='wave') {triggerTraps(s);updateEnemies(s,config,emit);}
     for(const e of s.spiders.filter(e=>e.health<=0)) {
-      const scrapDrop=config.spiders.find(d=>d.id===e.spiderId).scrapDrop*(e.elite?3:1);
+      const scrapDrop=e.brood?BROOD.scrapDrop:config.spiders.find(d=>d.id===e.spiderId).scrapDrop*(e.elite?3:1);
       creditScrap(s,scrapDrop,e.lastSource);s.kills++;s.stats.kills[e.lastSource]++;
       emit('spider:death',{entity:{id:e.id,generation:e.generation},spiderId:e.spiderId,waveIndex:s.wave,scrapDrop,source:e.lastSource,position:{x:e.x,y:e.y,z:e.z}});
     }
@@ -105,6 +122,7 @@ export function createSim(config, { seed = 1 } = {}) {
       else {s.wave++;s.phase='build';s.subphase='build';phaseTick=0;releaseAt=0;earlyCountdownAt=null;s.remaining=waveDefinition().buildTime;unlock(s,config);schedule();}
     }
     updateSupply(s,(combatTick-1)*DT);
+    updateNest(s,(combatTick-1)*DT,spawnBrood);
     previous={...input};
   }
   reset();

@@ -16,6 +16,9 @@ import { getHudHints, createHudGuide } from './game/render/hudHints.js';
 import { DASH } from './game/data/dash.js';
 import { shotgunMod, SHOTGUN_MODS } from './game/data/weaponMods.js';
 import { BENCH, distance, visible } from './game/sim/physics.js';
+import { barricadeOffer } from './game/sim/barricades.js';
+import { BARRICADE } from './game/data/barricades.js';
+import { NEST } from './game/data/nests.js';
 
 const SPIDER_INTRO={karakurt_spitter:'Плеватели: держитесь за укрытием',tarantula_brute:'Тараны: бьют по шалашу, стреляйте издалека',jumper_wolf:'Пауки-волки: прыгают, отходите в сторону',widow_queen:'Королева: стреляйте сзади — урон ×2'};
 
@@ -54,12 +57,16 @@ export async function boot(root){
   banner.append(bannerTitle,bannerDetail);$('.hud').append(banner);
   const ammoOffer=document.createElement('small');ammoOffer.id='ammo-offer';$('#offer').after(ammoOffer);
   const supplyHint=document.createElement('small');supplyHint.id='supply-hint';supplyHint.setAttribute('role','status');$('.hud-wave').append(supplyHint);
+  const nestHint=document.createElement('small');nestHint.id='nest-hint';nestHint.hidden=true;$('.hud-wave').append(nestHint);
+  const nestHelp=document.createElement('p');nestHelp.textContent='С третьей волны за лагерем появляется паучий кокон. Найдите его по подсказке и расстреляйте: он перестанет выпускать мелких пауков, а вы получите 35 деталей. Уже появившийся выводок остаётся в бою.';$('#controls').append(nestHelp);
   const supplyPointer=document.createElement('div'),supplyArrow=document.createElement('span'),supplyDistance=document.createElement('small');
   supplyPointer.id='supply-pointer';supplyPointer.hidden=true;supplyPointer.setAttribute('role','img');supplyArrow.setAttribute('aria-hidden','true');supplyPointer.append(supplyArrow,supplyDistance);
   const damageDirection=document.createElement('div');damageDirection.id='damage-direction';damageDirection.hidden=true;damageDirection.setAttribute('role','img');
   const shelterAlert=document.createElement('div');shelterAlert.id='shelter-alert';shelterAlert.hidden=true;shelterAlert.setAttribute('role','status');shelterAlert.textContent='Шалаш на грани · Защитите подходы';
   $('.hud').append(supplyPointer,damageDirection,shelterAlert);
   const upgradeHint=document.createElement('small');upgradeHint.id='upgrade-offer';$('.hud-shelter').append(upgradeHint);
+  const barricadeHint=document.createElement('small');barricadeHint.id='barricade-offer';barricadeHint.setAttribute('role','status');$('.hud-shelter').append(barricadeHint);
+  const defenceHelp=document.createElement('p');defenceHelp.textContent='B · Построить или починить баррикаду рядом с отмеченной площадкой, только в подготовке. Доски блокируют движение и низкие выстрелы; пауки обходят их или ломают. Постройка: 25 деталей, ремонт: 10.';$('#controls').append(defenceHelp);
   const dashHint=document.createElement('small');dashHint.id='dash-state';$('#stamina').after(dashHint);
   const modHint=document.createElement('small');modHint.id='mod-offer';upgradeHint.after(modHint);
   const tacticalHelp=document.createElement('p');tacticalHelp.textContent='C + WASD · Рывок с земли: 30 выносливости, без неуязвимости. Дробовик у верстака: Z · узкая дробь, X · широкая дробь. 40 деталей, один вариант на забег.';$('#controls').append(tacticalHelp);
@@ -190,6 +197,9 @@ export async function boot(root){
     text('#shelter',s.shelterIntegrity>0&&s.shelterIntegrity<1?'<1':Math.floor(s.shelterIntegrity));$('#shelterbar').value=s.shelterIntegrity;
     text('#shelter-status',s.shelterIntegrity<30?'Шалаш на грани':s.time<shelterUntil?'Шалаш под атакой':s.shelterIntegrity<70?'Повреждён':'');
     text('#scrap',`Детали: ${s.scrap}`);
+    const bo=barricadeOffer(s),nearBarrier=distance(s.player,bo.site)<=BARRICADE.reach,bar=s.barricades?.find(b=>b.id===bo.site.id),notice=s.barricadeNotice;
+    barricadeHint.hidden=!nearBarrier&&!(notice&&s.time-notice.time<3);
+    if(!barricadeHint.hidden)text('#barricade-offer',notice&&s.time-notice.time<3?notice.text:s.phase==='build'&&s.subphase==='build'?`B · ${bo.kind==='repairBarricade'?'Ремонт':'Баррикада'} · ${bo.site.label} · ${bo.cost} деталей${bo.ok?'':`\n${bo.reason}`}`:bar?.health>0?`${bar.label} · Баррикада ${Math.ceil(bar.health)} / ${bar.maxHealth}`:'Баррикада · Постройка в подготовке');
     const hints=getHudHints(s);
     for(const [id,key] of [['#offer','offer'],['#ammo-offer','ammo'],['#upgrade-offer','upgrade'],['#trap-offer','trap'],['#trap-place','place'],['#action-result','result']]){
       text(id,hints[key]);$(id).hidden=!hints[key];
@@ -202,6 +212,11 @@ export async function boot(root){
     text('#warning',s.phase==='build'&&s.endlessScenario?`${s.endlessScenario.name} · ${s.endlessScenario.hint}`:s.boss?`Королева: ${Math.ceil(s.boss.health)} HP`:s.warnings.length?'Приближаются: '+s.warnings.map(w=>['С','В','Ю','З'][w.sector]).join(' · '):'');
     const supply=s.supply,pickup=s.supplyPickup;
     text('#supply-hint',supply?`Припасы · ${Math.ceil(Math.hypot(supply.x-s.player.x,supply.z-s.player.z))} м · осталось ${Math.ceil(Math.max(0,supply.expiresAt-s.time))} с`:pickup&&s.time-pickup.time<2?`+${pickup.amount} деталей`:'');
+    const n=s.nest,nn=s.nestNotice;nestHint.hidden=!n&&!(nn&&s.time-nn.time<NEST.noticeTime);
+    if(n){const angle=Math.atan2(-(n.x-s.player.x),-(n.z-s.player.z))-s.player.yaw,relative=Math.atan2(Math.sin(angle),Math.cos(angle));
+      const direction=!visible(s.player,{...n,height:n.aimHeight},{...s,nest:null})?'за укрытием':Math.abs(relative)>Math.PI*.7?'сзади':relative>.35?'слева':relative<-.35?'справа':'впереди';
+      text('#nest-hint',`Гнездо · ${direction} · ${Math.ceil(distance(s.player,n))} м\n${Math.ceil(n.health)} HP · выводок ${n.emitted} / ${NEST.maxBirths}`);
+    }else if(!nestHint.hidden)text('#nest-hint',nn.text);
     const a=s.weapons[s.activeSlot-1],level=UPGRADE_LEVELS[a.level-1],mod=shotgunMod(a.modification);text('#ammo',`${a.magazine} / ${a.reserve}`);text('#weapon',s.activeSlot===5?'Комплект турели':`${labels[s.activeSlot-1]} · ${level.label}${mod?` · ${mod.label}`:''}${a.reload>0?' · Перезарядка…':''}`);
     modHint.hidden=s.activeSlot!==2||s.phase!=='build'||s.subphase!=='build'||Boolean(mod)||distance(s.player,BENCH)>2.5||!visible(s.player,BENCH);
     if(!modHint.hidden)text('#mod-offer',`Z · Узкая дробь\nX · Широкая дробь\n${SHOTGUN_MODS.mod_narrow.cost} деталей · один выбор`);
@@ -267,5 +282,5 @@ export async function boot(root){
     if(!matchMedia('(pointer:fine)').matches||!canvas.requestPointerLock){start.disabled=true;text('#message','Для игры нужен ПК с мышью и поддержкой Pointer Lock.');}
   }
   await prepareAssets();
-  return {startNewRun,pause,resumeFromGesture,dispose(){disposed=true;audio.dispose();abort.abort();cancelAnimationFrame(raf);world.dispose();disposeProductionAssets(assets);banner.remove();endless.remove();ammoOffer.remove();supplyHint.remove();supplyPointer.remove();damageDirection.remove();shelterAlert.remove();guideHint.remove();startHint.remove();startProgress.remove();startHelp.remove();upgradeHint.remove();trapHint.remove();placeHint.remove();actionHint.remove();results.remove();bus.clear();}};
+  return {startNewRun,pause,resumeFromGesture,dispose(){disposed=true;audio.dispose();abort.abort();cancelAnimationFrame(raf);world.dispose();disposeProductionAssets(assets);banner.remove();endless.remove();ammoOffer.remove();supplyHint.remove();nestHint.remove();nestHelp.remove();supplyPointer.remove();damageDirection.remove();shelterAlert.remove();guideHint.remove();startHint.remove();startProgress.remove();startHelp.remove();upgradeHint.remove();barricadeHint.remove();defenceHelp.remove();trapHint.remove();placeHint.remove();actionHint.remove();results.remove();bus.clear();}};
 }

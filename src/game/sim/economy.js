@@ -17,7 +17,7 @@ export function offer(s, action = '') {
   let kind = action || (i === 4 ? 'build' : 'repair');
   let cost = 0, amount = 0, reason = '';
   if (s.phase !== 'build' || s.subphase !== 'build') reason = 'Покупки только в подготовке';
-  else if (distance(s.player, BENCH) > 2.5 || !visible(s.player, BENCH)) reason = 'Подойдите к верстаку справа от шалаша';
+  else if (distance(s.player, BENCH) > 2.5 || !visible(s.player, BENCH,s)) reason = 'Подойдите к верстаку справа от шалаша';
   else if (!a.unlocked) reason = 'Оружие ещё закрыто';
   if (kind === 'build') {
     cost = 120; amount = 1;

@@ -7,7 +7,7 @@ export function getHudHints(s){
   const hints={offer:'',ammo:'',upgrade:'',trap:'',place:'',result:''};
   const action=s.lastAction;
   if(action&&s.tick>=action.tick&&(s.tick-action.tick)*DT<HUD.actionNotice){
-    const done={repair:'Шалаш отремонтирован',ammo:'Патроны куплены',upgrade:'Оружие улучшено',trap:'Капкан куплен',build:'Турель установлена'};
+    const done={repair:'Шалаш отремонтирован',ammo:'Патроны куплены',upgrade:'Оружие улучшено',trap:'Капкан куплен',build:'Турель установлена',buildBarricade:'Баррикада построена',repairBarricade:'Баррикада отремонтирована'};
     hints.result=action.ok?(action.kind==='placeTrap'?'Капкан установлен':`${done[action.kind]??'Покупка'} · −${action.cost}\u00a0деталей`):action.reason;
   }
   if(s.phase!=='build'||s.subphase!=='build')return hints;

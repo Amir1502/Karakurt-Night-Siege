@@ -117,6 +117,14 @@ canvas#game3d {
   line-height: 1.5;
 }
 
+#hud3d :is(#barricade-offer, #nest-hint) {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--accent);
+  white-space: pre-line;
+}
+
 #hud3d em {
   color: var(--danger);
   font-style: normal;

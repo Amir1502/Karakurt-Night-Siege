@@ -4,6 +4,11 @@ import { createScenery } from './render/scenery.js';
 import { createTrapViews } from './render/traps.js';
 import { createSupplyView } from './render/supply.js';
 import { createAttackWarnings } from './render/attackWarnings.js';
+import { createWeaponMotion, recoilPose } from './render/weaponMotion.js';
+import { createCombatEffects } from './render/combatEffects.js';
+import { COMBAT_FEEL } from './data/combatFeel.js';
+import { createBarricadeViews } from './render/barricades.js';
+import { createNestView } from './render/nests.js';
 
 const WEAPONS=['pistol_makarov','shotgun_trench','smg_scorpion','flamethrower_torch','turret_sentry'];
 export function createWorld(canvas, assets = new Map()) {
@@ -18,6 +23,9 @@ export function createWorld(canvas, assets = new Map()) {
   const trapViews=createTrapViews(scene);
   const supplyView=createSupplyView(scene);
   const attackWarnings=createAttackWarnings(scene);
+  const combatEffects=createCombatEffects(scene),motions=[];
+  const barricadeViews=createBarricadeViews(scene);
+  const nestView=createNestView(scene);
   const equipment=[],installed=[];let shelter,turret,lastTime=null,previousShot=0,previousReload=0,previousTurretShot=0,slot=0,noFlash=false,flashUntil=0,hadTurret=false,turretReloading=false;
   const shadowGeometry=new THREE.CircleGeometry(.65,16),shadowMaterial=new THREE.MeshBasicMaterial({color:'#171d28',transparent:true,opacity:.3,depthWrite:false});
   const eliteGeometry=new THREE.RingGeometry(.72,.77,32),eliteMaterial=new THREE.MeshBasicMaterial({color:'#ff5a1f',side:THREE.DoubleSide,transparent:true,opacity:.85,depthWrite:false,toneMapped:false});
@@ -34,12 +42,12 @@ export function createWorld(canvas, assets = new Map()) {
   const muzzleLight=new THREE.PointLight('#ffb35c',0,7,2);scene.add(muzzleLight);
 
   function install(catalog) {
-    reset();installed.splice(0).forEach(v=>v.dispose());equipment.length=0;assets=catalog;scenery.install(assets);
+    reset();installed.splice(0).forEach(v=>v.dispose());equipment.length=0;motions.length=0;assets=catalog;scenery.install(assets);
     trapViews.install(assets);
     supplyView.install(assets);
     attackWarnings.install(assets);
     shelter=instantiateAsset(assets,'shelter');if(shelter){scene.add(shelter.root);installed.push(shelter);}
-    for(const id of WEAPONS){const v=instantiateAsset(assets,id);equipment.push(v);if(!v)continue;
+    for(const id of WEAPONS){const v=instantiateAsset(assets,id);equipment.push(v);motions.push(v?createWeaponMotion(v,equipment.length):null);if(!v)continue;
       v.root.position.set(.24,-.25,-.48);camera.add(v.root);v.root.visible=false;installed.push(v);
       const world=v.root.getObjectByName('world_root');if(world)world.visible=false;
     }
@@ -52,7 +60,8 @@ export function createWorld(canvas, assets = new Map()) {
   }
   function enemy(e,scale) {
     const stock=pool.get(e.spiderId),v=stock?.pop()??instantiateAsset(assets,e.spiderId);if(!v)return null;
-    if(!v.shadow){v.shadow=new THREE.Mesh(shadowGeometry,shadowMaterial);v.shadow.rotation.x=-Math.PI/2;v.shadow.scale.setScalar(scale);}
+    if(!v.shadow){v.shadow=new THREE.Mesh(shadowGeometry,shadowMaterial);v.shadow.rotation.x=-Math.PI/2;}
+    v.shadow.scale.setScalar(scale);
     if(e.elite&&!v.eliteMark){
       v.eliteMark=new THREE.Mesh(eliteGeometry,eliteMaterial);v.eliteMark.rotation.x=-Math.PI/2;v.eliteMark.position.y=.025;v.root.add(v.eliteMark);
       const head=v.root.getObjectByName('socket_attack')??v.root;
@@ -67,6 +76,9 @@ export function createWorld(canvas, assets = new Map()) {
     trapViews.reset();
     supplyView.reset();
     attackWarnings.reset();
+    combatEffects.reset();motions.forEach(m=>m?.reset());
+    barricadeViews.reset();
+    nestView.reset();
     entities.forEach(retire);entities.clear();dead.splice(0).forEach(d=>retire(d.v));
     projectiles.forEach(m=>m.removeFromParent());projectiles.clear();equipment.forEach(v=>v?.reset());
     dust.forEach(d=>{d.left=0;d.sprite.visible=false;});dustIndex=0;
@@ -83,8 +95,10 @@ export function createWorld(canvas, assets = new Map()) {
     const live=new Set();
     for(const e of s.spiders){
       live.add(e.id);let v=entities.get(e.id);
-      if(!v){v=enemy(e,s.definitions?.find(d=>d.id===e.spiderId)?.scale??1);if(!v)continue;entities.set(e.id,v);}
+      if(!v){v=enemy(e,e.visualScale??s.definitions?.find(d=>d.id===e.spiderId)?.scale??1);if(!v)continue;entities.set(e.id,v);}
       v.root.position.set(e.x,e.y,e.z);v.root.rotation.y=e.yaw;
+      const flinch=Math.max(0,1-(s.time-(e.hitTime??-1))/COMBAT_FEEL.flinchTime);
+      v.root.rotation.z=Math.sin(flinch*Math.PI)*.08;v.root.position.y+=Math.sin(flinch*Math.PI)*.04;
       v.shadow.position.set(e.x,.012,e.z);v.shadow.visible=e.y<.5;
       if(e.enraged&&!v.enraged)v.phaseUntil=s.time+.8;
       const action=s.time<v.phaseUntil&&['idle','walk'].includes(e.state)?'phase_change':e.state;v.enraged=e.enraged;
@@ -106,23 +120,23 @@ export function createWorld(canvas, assets = new Map()) {
       const n=shelter.root.getObjectByName(name);if(n)n.visible=name==='state_intact'?s.shelterIntegrity>=70:name==='state_damaged'?s.shelterIntegrity>=30&&s.shelterIntegrity<70:name==='state_critical'?s.shelterIntegrity<30:name==='critical_standing'?s.shelterIntegrity>0:s.shelterIntegrity<=0;
     }
     const view=equipment[s.activeSlot-1],kit=s.activeSlot===5;
-    if(slot!==s.activeSlot){equipment.forEach((v,i)=>{if(v){v.root.visible=i===s.activeSlot-1;v.reset();}});slot=s.activeSlot;view?.play(kit?'kit_equip':'equip',true,.3);}
+    if(slot!==s.activeSlot){motions.forEach(m=>m?.reset());equipment.forEach((v,i)=>{if(v){v.root.visible=i===s.activeSlot-1;v.reset();}});slot=s.activeSlot;kick=0;view?.play(kit?'kit_equip':'equip',true,.3);}
     if(view){
       if(kit&&s.turrets.length&&!hadTurret)view.play('kit_deploy',true);
       if(s.shotSerial!==previousShot){view.play('fire',true);previousShot=s.shotSerial;flashUntil=s.time+.045;
         kick=Math.min(1.6,kick+KICK[s.activeSlot-1]);kickRoll=(Math.random()-.5)*.5;
         muzzleMaterial.rotation=Math.random()*Math.PI*2;flash.scale.setScalar(.18+Math.random()*.12*(s.activeSlot===2?1.8:1));}
-      kick*=Math.exp(-dt*16);if(kick<1e-3)kick=0;
-      view.root.position.set(VIEW_BASE.x+kick*.012*kickRoll,VIEW_BASE.y+kick*.018,VIEW_BASE.z+kick*.075);
-      view.root.rotation.set(kick*.16,kick*.02*kickRoll,kick*.06*kickRoll);
-      camera.rotation.x+=kick*.008;
+      const recoil=recoilPose(s.activeSlot,s.lastShot?.slot===s.activeSlot?s.time-s.lastShot.time:100);
+      view.root.position.set(VIEW_BASE.x,VIEW_BASE.y+recoil.z*.2,VIEW_BASE.z+recoil.z);
+      view.root.rotation.set(recoil.pitch,0,recoil.pitch*.12*kickRoll);
+      motions[s.activeSlot-1]?.restore();
       if(s.reloadSerial!==previousReload){view.play('reload',true,s.weapons[s.activeSlot-1].reload);previousReload=s.reloadSerial;}
       if(view.finished)view.play(kit?'kit_idle':'idle');view.mixer.update(dt);
+      const pose=motions[s.activeSlot-1]?.apply(s);if(pose)view.root.rotation.z-=pose.tilt;
       const socket=view.root.getObjectByName('socket_muzzle');camera.updateMatrixWorld(true);socket?.getWorldPosition(muzzle);
       flash.position.copy(muzzle);flash.visible=!noFlash&&s.time<flashUntil&&s.activeSlot!==4;
       muzzleLight.position.copy(muzzle);muzzleLight.intensity=flash.visible?(s.activeSlot===2?14:8):0;
-      flame.visible=s.activeSlot===4&&s.time-(s.lastShot?.time??-1)<.12;
-      if(flame.visible){camera.getWorldDirection(target);flame.position.copy(muzzle).addScaledVector(target,1.2);flame.scale.set(1,1.6,1);}
+      flame.visible=false;combatEffects.update(s,dt,muzzle,camera,noFlash);
     }
     if(turret){
       turret.root.visible=s.turrets.length>0;
@@ -136,12 +150,12 @@ export function createWorld(canvas, assets = new Map()) {
     const ids=new Set(s.webs.map(w=>w.id));
     for(const w of s.webs){let m=projectiles.get(w.id);if(!m){m=new THREE.Mesh(webGeometry,webMaterial);projectiles.set(w.id,m);scene.add(m);}m.position.set(w.x,w.y,w.z);}
     for(const [id,m]of projectiles)if(!ids.has(id)){m.removeFromParent();projectiles.delete(id);}
-    attackWarnings.update(s);supplyView.update(s);trapViews.update(s);scenery.update(s,s.visualDelta??dt,noFlash);renderer.render(scene,camera);
+    nestView.update(s,camera,noFlash);barricadeViews.update(s);attackWarnings.update(s);supplyView.update(s);trapViews.update(s);scenery.update(s,s.visualDelta??dt,noFlash);renderer.render(scene,camera);
   }
   return {getScene:()=>scene,getCamera:()=>camera,install,render,reset,
     shake(amount){if(noFlash||!Number.isFinite(amount)||amount<=0)return;shakeAmount=.04*amount/10;shakeLeft=.25;},
     setNoFlash(value){noFlash=Boolean(value);if(noFlash)shakeLeft=shakeAmount=0;},
     resize(w,h,dpr){camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setPixelRatio(Math.min(dpr,1.5));renderer.setSize(w,h);},
-    dispose(){reset();for(const values of pool.values())for(const v of values)v.dispose();pool.clear();installed.forEach(v=>v.dispose());attackWarnings.dispose();supplyView.dispose();trapViews.dispose();scenery.dispose();shadowGeometry.dispose();shadowMaterial.dispose();eliteGeometry.dispose();eliteMaterial.dispose();eliteEyeMaterial.dispose();webGeometry.dispose();webMaterial.dispose();muzzleMaterial.dispose();dust.forEach(d=>{d.sprite.removeFromParent();d.sprite.material.dispose();});renderer.dispose();}
+    dispose(){reset();combatEffects.dispose();barricadeViews.dispose();nestView.dispose();for(const values of pool.values())for(const v of values)v.dispose();pool.clear();installed.forEach(v=>v.dispose());attackWarnings.dispose();supplyView.dispose();trapViews.dispose();scenery.dispose();shadowGeometry.dispose();shadowMaterial.dispose();eliteGeometry.dispose();eliteMaterial.dispose();eliteEyeMaterial.dispose();webGeometry.dispose();webMaterial.dispose();muzzleMaterial.dispose();dust.forEach(d=>{d.sprite.removeFromParent();d.sprite.material.dispose();});renderer.dispose();}
   };
 }

@@ -1,5 +1,6 @@
 import { distance, insideShelter } from './physics.js';
 import { damageSpider } from './combat.js';
+import { obstacleAt } from './obstacles.js';
 
 export const TRAP = Object.freeze({ cost:35, limit:3, clearance:2, spacing:1.5, radius:.8, damage:30, stun:2, heavyStun:1, effectTime:.6 });
 
@@ -11,6 +12,7 @@ export function placementOffer(s) {
   else if(p.y>0||p.vy!==0)reason='Для установки встаньте на землю';
   else if(insideShelter(p.x,p.z)||Math.hypot(Math.max(0,Math.abs(p.x)-3),Math.max(0,Math.abs(p.z)-2.5))<TRAP.clearance)reason='Отойдите на 2 м от стен шалаша';
   else if(s.traps.some(t=>distance(p,t)<TRAP.spacing))reason='Отойдите на 1,5 м от другого капкана';
+  else if(obstacleAt(s,p.x,p.z,TRAP.radius,0))reason='Отойдите от баррикады';
   return {kind:'placeTrap',cost:0,amount:1,ok:!reason,reason};
 }
 

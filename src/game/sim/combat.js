@@ -1,18 +1,22 @@
 import { DT, angleDelta, clamp, distance, visible, wallDistance } from './physics.js';
 import { effectiveWeapon } from '../data/upgrades.js';
+import { obstacleDistance } from './obstacles.js';
+import { recordImpact } from './impacts.js';
+import { damageNest } from './nests.js';
 export function damageSpider(s, enemy, amount, source) {
-  if (enemy.health <= 0) return 0;
+  if (enemy.health <= 0 || !Number.isFinite(amount) || amount<=0) return 0;
   const applied = Math.min(enemy.health, amount);
   enemy.health -= applied; enemy.aggro = 3; enemy.lastSource = source;
   if (applied > 0 && source === 'player') s.hitSerial++;
+  recordImpact(s,enemy,applied,source);
   return applied;
 }
 function rayHit(s, yaw, pitch, range) {
   const p = s.player, dx = -Math.sin(yaw)*Math.cos(pitch), dz = -Math.cos(yaw)*Math.cos(pitch), dy = Math.sin(pitch);
-  let best = Math.min(range, wallDistance(p, dx, dz, range)), hit = null;
-  for (const e of s.spiders) {
+  let best = Math.min(range, wallDistance(p, dx, dz, range),obstacleDistance({...s,nest:null},{x:p.x,y:p.y+1.65,z:p.z},{x:dx,y:dy,z:dz},range)), hit = null;
+  for (const e of s.nest?[...s.spiders,s.nest]:s.spiders) {
     if (e.health <= 0) continue;
-    const x=e.x-p.x, y=e.y+e.height-(p.y+1.65), z=e.z-p.z;
+    const x=e.x-p.x, y=e.y+(e.aimHeight??e.height)-(p.y+1.65), z=e.z-p.z;
     const along=x*dx+y*dy+z*dz;
     const off=x*x+y*y+z*z-along*along;
     if (along < 0 || off > e.radius*e.radius) continue;
@@ -26,8 +30,11 @@ function fire(s, w, random) {
   if (w.id === 'flamethrower_torch') {
     for (const e of s.spiders) {
       const d = distance(s.player,e), angle=Math.atan2(-(e.x-s.player.x), -(e.z-s.player.z));
-      if (d <= w.range+e.radius && Math.abs(angleDelta(angle,s.player.yaw)) <= w.spread*Math.PI/180 && visible(s.player,e)) damageSpider(s,e,w.damage,'player');
+      if (d <= w.range+e.radius && Math.abs(angleDelta(angle,s.player.yaw)) <= w.spread*Math.PI/180 && visible(s.player,e,s)) damageSpider(s,e,w.damage,'player');
     }
+    const n=s.nest;
+    if(n?.health>0){const d=distance(s.player,n),angle=Math.atan2(-(n.x-s.player.x),-(n.z-s.player.z)),pitch=Math.atan2(n.aimHeight-s.player.y-1.65,d);
+      if(d<=w.range+n.radius&&Math.abs(angleDelta(angle,s.player.yaw))<=w.spread*Math.PI/180&&Math.abs(pitch-s.player.pitch)<=w.spread*Math.PI/180&&visible(s.player,{...n,height:n.aimHeight},{...s,nest:null}))damageNest(s,n,w.damage);}
     return;
   }
   for (let i=0;i<w.pellets;i++) {
@@ -41,7 +48,7 @@ function fire(s, w, random) {
       const from=Math.atan2(s.player.x-e.x,s.player.z-e.z);
       if (Math.abs(angleDelta(from,e.yaw))>Math.PI*.65) amount*=2;
     }
-    damageSpider(s,e,amount,'player');
+    if(e===s.nest)damageNest(s,e,amount);else damageSpider(s,e,amount,'player');
   }
 }
 export function updateWeapons(s, config, input, previous, emit, random) {
@@ -71,7 +78,7 @@ export function updateWeapons(s, config, input, previous, emit, random) {
     return;
   }
   if((!ta.magazine || input.KeyR&&!previous.KeyR&&i===4&&distance(s.player,turret)<=2.5) && ta.reserve) { turret.reload=tw.reloadTime; return; }
-  const targets=s.spiders.filter(e=>e.health>0 && distance(turret,e)<=tw.range && visible(turret,e));
+  const targets=s.spiders.filter(e=>e.health>0 && distance(turret,e)<=tw.range && visible({...turret,height:1.4},e,s));
   targets.sort((a,b)=>Number(b.target==='shelter')-Number(a.target==='shelter') || distance(turret,a)-distance(turret,b));
   const e=targets[0]; if(!e) return;
   const desired=Math.atan2(e.x-turret.x,e.z-turret.z), delta=angleDelta(desired,turret.yaw);
